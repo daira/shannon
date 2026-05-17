@@ -1,0 +1,8 @@
+# Editor temporary files
+.*.swp
+*~
+
+# Conventional directories we like to use for temporary and more permanent files that are not checked in.
+# We recommend these be ignored globally, but we'll do it here in case they are not.
+tmp/
+keep/
