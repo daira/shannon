@@ -67,6 +67,12 @@ shannon/
   multi-line hook bodies in `settings.json` — heredocs and apostrophes
   inside JSON are fragile. The installer's job is to copy scripts and merge
   a small JSON snippet that references them.
+- **Tests are expected for shipped scripts.** Any new script added to
+  `hooks/` — or any substantive modification to an existing one — needs a
+  corresponding test under `tests/`. See `docs/testing.md` for the testing
+  approach: pipe-test with synthesized stdin JSON; assert on exit code,
+  stdout JSON shape, and any filesystem side effects. The test suite uses
+  [bats](https://bats-core.readthedocs.io/) and runs in CI.
 - **The installer must remain idempotent and non-destructive.** Re-running
   `./install.sh` is safe. Existing user files
   (`~/.claude/settings.json`, `~/.claude/memory/*`, and
@@ -84,6 +90,13 @@ shannon/
   `feedback_X.md` references `feedback_Y.md`, both should ship in the seed
   (or the reference should explain how to satisfy it without `feedback_Y.md`
   being present).
+- **Task bodies are short pointers; durable design content goes in `docs/`.**
+  The harness's default task-list view shows task subjects only, so design
+  notes, test plans, scope expansions, and other content the user will want
+  to read should live in `docs/<topic>.md` (or `tests/README.md`, etc.). The
+  task body remains useful as a future-agent-facing backup but is not the
+  canonical home. See the global `feedback_durable_task_context_in_file.md`
+  for the general principle.
 
 ## Out of scope
 

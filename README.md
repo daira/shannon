@@ -75,6 +75,52 @@ doesn't apply— but they need different fixes.
   `~/.claude/memory/` (skipping any that already exist), and installs the
   `CLAUDE.md` template.
 
+## Memories vs skills
+
+Claude Code persists context across sessions in two distinct forms:
+**memories** (declarative rules whose `MEMORY.md` index summaries sit in
+context every session) and **skills** (task-shaped procedures loaded
+lazily, either via slash command or by the harness auto-matching the
+skill's description against the current task). They're not
+interchangeable, and the right home for a given piece of content depends
+on its shape, not its topic.
+
+Shannon's seed corpus is currently entirely memories. That can look
+surprising — *"isn't proficiency with git a skill?"* — because human
+English uses "skill" for what is in fact a *bundle* of always-active
+rules plus invokable procedures plus accumulated heuristics. For a
+memory-augmented agent, the same bundle splits along the always-active /
+on-demand axis:
+
+- **Always-active rules** (don't push during security fixes; match the
+  repo's existing scope-casing; `git reset --hard` is destructive;
+  preserve `Co-authored-by` trailers across rebases) → **memories**.
+  Memory summaries are in context every session, so the rules can fire
+  without the agent having to invoke anything first.
+- **Task-shaped procedures** (multi-step rebase recovery flows, release
+  workflows, recovery procedures that benefit from executable helpers) →
+  **skills**. Skills are lazy-loaded and can ship scripts; they cost
+  almost no context until invoked.
+
+Decision rule:
+
+> If violating it *once* is bad, it's a memory.
+> If doing it *without guidance* is suboptimal but recoverable, it's a
+> skill.
+
+The two layers complement, not substitute. A future Shannon could ship a
+`git-safety` skill alongside the git-cluster memories — the skill
+providing end-to-end recovery procedures, the memories carrying the
+always-on rules those procedures must obey.
+
+This split also clarifies why skills can't solve the trigger-miss
+failure mode for declarative rules: a skill is auto-surfaced when the
+harness sees the user's task description match the skill's description,
+but the agent's own silent decisions (e.g. about to run `git reset
+--hard` without the user explicitly framing it as "git work") don't
+trigger that match. For trigger-miss on rules, the right mechanism is
+a `PreToolUse` hook gating on the specific action.
+
 ## Security
 
 Current mechanisms to limit the scope of what an AI agent can do are
@@ -97,7 +143,7 @@ any project you're working on.
 ## Quick start
 
 ```bash
-git clone https://github.com/<owner>/shannon.git
+git clone https://github.com/daira/shannon.git
 cd shannon
 ./install.sh
 ```
@@ -133,3 +179,11 @@ A few principles guide what's in this project:
 3. **Batteries included.** If you do want to opt into more opinionated
    memories about code development practices, more reliable ways to use the
    shell and `git`, etc., those are included.
+4. **Friction reduction on the path from noticing to memory-update.** When
+   a generalizable issue surfaces mid-session, the default response should
+   be to update or synthesize a memory rather than narrate the observation
+   in conversation that evaporates at compaction. Shannon's mechanisms
+   —the seed memory encoding this rule, the synthesis-check hook on memory
+   writes, and the always-loaded `CLAUDE.md` template— aim to keep that
+   path short and low-friction, so memory-update is the structurally
+   easier action.
