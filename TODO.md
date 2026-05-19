@@ -10,7 +10,7 @@ Tracking list for Shannon work. Entries are brief; details for any item live in 
 - [ ] Add `tests/fixtures/` (stdin payloads, fixture memory corpora at green / yellow / red sizes, sample transcript).
 - [ ] `.github/workflows/test.yml` running `bats tests/` via `bats-core/bats-action`.
 - [ ] `session-start.sh` and `save-session.sh` test cases.
-- [ ] `check-tmp-path.sh` test cases.
+- [x] `check-tmp-path.sh` test cases. Lives at `tests/check-tmp-path.bats`; 10 tests covering all rows of the per-case table in `docs/testing.md` (the four trigger patterns, the `/tmp/claude-*` exemption, two non-trigger / false-positive cases, missing-field and malformed-JSON canaries, plus a parse-check). Mutation-tested: changing the exemption pattern caused only the exempt-case test to fail.
 
 ## Hook scripts
 

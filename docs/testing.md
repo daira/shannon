@@ -55,6 +55,26 @@ Repeat for every shell script in `hooks/`; for `jsonl-to-md.py` substitute `pyth
 
 The malformed-input case is **load-bearing**: a subtle regression in error handling could silently start blocking memory writes, and the user would see the Write fail with no obvious cause. This test is the canary for that regression. The same property should hold for any future hook script Shannon ships.
 
+## `check-tmp-path.sh`
+
+<!-- See also: `TODO.md` "Tests" section references this table. Edits to the test cases here do not require TODO updates unless a whole script's worth of cases is added or removed. -->
+
+The script inspects `.tool_input.command` for references to `/tmp/`. It emits a reminder when the command appears to be writing scratch under `/tmp/`, and exempts `/tmp/claude-*` paths (Claude Code's own scratch).
+
+| Case | `.tool_input.command` | Expected |
+|---|---|---|
+| Literal `/tmp/<path>` | `touch /tmp/foo` | exit 0, reminder emitted |
+| Bare `/tmp` argument (space-bounded) | `ls /tmp foo` | exit 0, reminder emitted (matches the ` /tmp ` form of the trigger pattern) |
+| `=/tmp/<path>` flag | `mkdir --parents=/tmp/foo` | exit 0, reminder emitted |
+| `=/tmp ` flag (trailing space) | `myscript --dir=/tmp other` | exit 0, reminder emitted |
+| `/tmp/claude-*` (Claude Code scratch) | `cat /tmp/claude-abc/result.txt` | exit 0, no output (exempt) |
+| Non-tmp command | `ls /home/user` | exit 0, no output |
+| `tmp` substring outside `/tmp/` | `cat /home/user/tmpfile.txt` | exit 0, no output (no false positive) |
+| Missing `command` field | `{"tool_input":{}}` | exit 0, no output |
+| Malformed JSON on stdin | `not-json` | exit 0, no output (must never block the Bash tool) |
+
+The malformed-input case is **load-bearing** here too — and arguably more so than for `check-memory-synthesis.sh`, because a blocking failure on a Bash `PreToolUse` hook would break *every* Bash command the agent runs, not just memory edits.
+
 ## `session-start.sh`
 
 | Case | Setup | Expected |
