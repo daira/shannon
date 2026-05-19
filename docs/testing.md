@@ -43,16 +43,15 @@ Repeat for every shell script in `hooks/`; for `jsonl-to-md.py` substitute `pyth
 
 | Case | Stdin payload | Expected |
 |---|---|---|
-| Global memory path | `{"tool_name":"Write","tool_input":{"file_path":"/home/foo/.claude/memory/x.md"}}` | exit 0, JSON emitted with `additionalContext` |
-| Project memory path | `{"tool_name":"Write","tool_input":{"file_path":"/home/foo/.claude/projects/slug/memory/x.md"}}` | exit 0, JSON emitted |
+| Global memory path | `{"tool_name":"Write","tool_input":{"file_path":"/home/foo/.claude/memory/x.md"}}` | exit 0, default reminder emitted (synthesis + sanitization) |
+| Project memory path | `{"tool_name":"Write","tool_input":{"file_path":"/home/foo/.claude/projects/slug/memory/x.md"}}` | exit 0, JSON emitted with a *project-scoped* `additionalContext` — both the project-vs-global check and the synthesis check, since a lesson with cross-project applicability belongs in the global tree instead. |
+| `MEMORY.md` (index) | `{"tool_name":"Edit","tool_input":{"file_path":"/home/foo/.claude/memory/MEMORY.md"}}` | exit 0, no output. The exclusion lives in the script (not in `settings.json`'s `if` field), because Claude Code's permission-rule syntax supports prefix matches but not negation. The same exclusion applies to project-scoped `MEMORY.md` and to `memory-seed/MEMORY.md`. |
 | Non-memory path | `{"tool_name":"Write","tool_input":{"file_path":"/tmp/random.txt"}}` | exit 0, no output |
 | Edit-shaped input | `{"tool_name":"Edit","tool_input":{"file_path":"/home/foo/.claude/memory/x.md","old_string":"a","new_string":"b"}}` | exit 0, JSON emitted (Edit and Write share the `file_path` field, so the script handles both) |
 | Malformed JSON on stdin | `not-json` | exit 0, no output (the script must never block the tool) |
 | Missing `file_path` | `{"tool_name":"Write","tool_input":{}}` | exit 0, no output |
 | `user_*.md` (user profile memory) | `{"tool_name":"Edit","tool_input":{"file_path":"/home/foo/.claude/memory/user_alice.md"}}` | exit 0, JSON emitted with a *path-aware* `additionalContext` — synthesis question still applies ("is this addition at home in this user profile, or does it belong in a feedback memory?") but the sanitization clause is dropped (named attribution is the point of these files). |
-| Memory-seed source path | `{"tool_name":"Edit","tool_input":{"file_path":"/path/to/shannon-checkout/memory-seed/feedback_x.md"}}` | exit 0, default reminder emitted — `*/memory-seed/*.md` matches via the third case branch, so when a maintainer's Claude instance edits the seed source directly it gets the same synthesis-check coverage as when a user's Claude edits the installed copy at `~/.claude/memory/`. |
-
-**`MEMORY.md` is excluded by `settings.json`, not by the script.** The hook entry's `if` field is set to skip MEMORY.md so the harness does not spawn the script for index edits — there is nothing useful to prompt for at the index level. That exclusion is a `settings.json` test rather than a script test: assert that the hook entry's `if` field, applied to `{"tool_input":{"file_path":"/home/foo/.claude/memory/MEMORY.md"}}`, evaluates to "do not fire".
+| Memory-seed source path | `{"tool_name":"Edit","tool_input":{"file_path":"/path/to/shannon-checkout/memory-seed/feedback_x.md"}}` | exit 0, default reminder emitted — `*/memory-seed/*.md` matches via the fall-through case branch, so when a maintainer's Claude instance edits the seed source directly it gets the same synthesis-check coverage as when a user's Claude edits the installed copy at `~/.claude/memory/`. |
 
 The malformed-input case is **load-bearing**: a subtle regression in error handling could silently start blocking memory writes, and the user would see the Write fail with no obvious cause. This test is the canary for that regression. The same property should hold for any future hook script Shannon ships.
 
