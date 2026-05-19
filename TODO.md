@@ -6,7 +6,7 @@ Tracking list for Shannon work. Entries are brief; details for any item live in 
 
 <!-- See also: `docs/testing.md` is the canonical source for the test design and the per-script test-case tables. The TODO items below should not enumerate test counts or per-case details (those belong in `docs/testing.md`); edits to the test design happen there, not here. If a TODO item adds or removes a *script* to be tested, both files need updating. -->
 
-- [ ] Write the bats suite for `check-memory-synthesis.sh`. See `docs/testing.md` for the per-case table.
+- [x] Write the bats suite for `check-memory-synthesis.sh`. Lives at `tests/check-memory-synthesis.bats`; 13 tests covering all rows of the per-case table in `docs/testing.md`, including a parse-check. Mutation-tested to confirm the assertions actually catch regressions (changing the project-scoped reminder text caused only the project-scoped row to fail).
 - [ ] Add `tests/fixtures/` (stdin payloads, fixture memory corpora at green / yellow / red sizes, sample transcript).
 - [ ] `.github/workflows/test.yml` running `bats tests/` via `bats-core/bats-action`.
 - [ ] `session-start.sh` and `save-session.sh` test cases.
