@@ -45,6 +45,8 @@ If there's no good fit, create the new memory file — but err on the side of sy
 - It states the failure mode but not the fix.
 - It uses generic verbs like "be careful" / "always check" without a concrete recipe.
 
+**Body-and-summary as closely-related content.** A memory body and its `MEMORY.md` index summary are *closely-related content* in the sense of Shannon's cross-reference convention (`shannon/CLAUDE.md` "Same or closely-related content across files"): the summary is a recipe-bearing condensation of the body, and an edit to either may require a paired edit to the other. Treat the body-and-summary relationship as an implicit cross-reference for all memory files; the body does not need a per-file `<!-- See also: MEMORY.md -->` comment because the rule applies uniformly across the corpus. When updating either, check whether the other needs the corresponding change.
+
 ## 4. When you notice something memory-worthy, *write it* — don't just say "worth noting"
 
 Conversation content evaporates: each turn's prose dissolves at session end (or earlier, at compaction). Only what's written to a memory file persists across sessions. So when the agent notices in conversation that something is memory-worthy — usually expressed as *"worth noting"*, *"this could be a memory"*, *"this is another instance of X pattern"*, *"this is a refinement to memory Y"* — the next action should be to **act**, not to narrate the intent.

@@ -67,6 +67,25 @@ shannon/
   multi-line hook bodies in `settings.json` — heredocs and apostrophes
   inside JSON are fragile. The installer's job is to copy scripts and merge
   a small JSON snippet that references them.
+- **Hook path-matching: in the script vs the `if` field.** When a
+  `PreToolUse` (or similar) hook should only act on certain paths, decide
+  where the path match lives by asking *"is there still something useful
+  to prompt for in the matched cases?"* If yes, match in the script (a
+  bash glob on `file_path` after the hook fires), so the script can emit
+  a path-aware reminder. If no, match in the `if` field of the hook entry
+  in `settings.json`, so the harness skips spawning the script entirely.
+  The `if` route saves a process spawn per non-matching invocation; the
+  script route keeps path logic in one place and lets a single hook emit
+  different reminders for different paths. Caveat: Claude Code's
+  permission-rule syntax supports prefix matches but not negation, so
+  EXCLUDE-style `if` filters (e.g. "any memory path EXCEPT `MEMORY.md`")
+  cannot be expressed directly — they would have to enumerate the
+  prefixes that DO match. When excluding a single path or filename,
+  script-level matching is usually the more practical choice even when
+  no prompt is needed. Real instance: `check-memory-synthesis.sh`
+  handles both `MEMORY.md` exclusion (no output) and `user_*.md`
+  path-aware reminders (synthesis applies, sanitization does not)
+  in-script for this reason.
 - **Tests are expected for shipped scripts.** Any new script added to
   `hooks/` — or any substantive modification to an existing one — needs a
   corresponding test under `tests/`. See `docs/testing.md` for the testing
@@ -90,6 +109,29 @@ shannon/
   `feedback_X.md` references `feedback_Y.md`, both should ship in the seed
   (or the reference should explain how to satisfy it without `feedback_Y.md`
   being present).
+- **Same or closely-related content across files: cross-reference in
+  comments, and propagate edits.** When the same content — or content
+  closely related enough that edits in one place are likely to affect
+  what should be in the other — appears in more than one file (e.g. a
+  reminder text in a hook script and the prose of the same rule in a
+  memory body; a memory body and the recipe-bearing `MEMORY.md` summary
+  that condenses it; a design described in `docs/<topic>.md` and a TODO
+  entry that summarises it), (a) annotate each location with a comment
+  naming the other location(s), in whatever comment syntax the file
+  uses (bash `# See also: <path>`, Markdown HTML comment
+  `<!-- See also: <path> -->`, etc.); and (b) when one location is
+  edited, propagate the edit to the others so they stay in sync. The
+  cross-reference comments are the mechanism that catches future drift:
+  an editor of one file sees, in that file, the names of the parallel
+  copies that also need to change. Real instances in this repo: the
+  `<project>/tmp/` rationale appears in both
+  `hooks/check-tmp-path.sh`'s reminder text and (the global)
+  `feedback_use_repo_tmp.md`'s body; `docs/testing.md`'s per-case test
+  tables are cross-referenced from `TODO.md`'s Tests section. The
+  body-and-`MEMORY.md`-summary relationship for all memory files is
+  treated as implicit cross-reference (see
+  `feedback_rich_memory_summaries.md` §4); no per-file `See also:`
+  comment is needed for that case.
 - **Task bodies are short pointers; durable design content goes in `docs/`.**
   The harness's default task-list view shows task subjects only, so design
   notes, test plans, scope expansions, and other content the user will want

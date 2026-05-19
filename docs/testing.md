@@ -18,7 +18,28 @@ Synthesize the stdin JSON each hook receives, pipe it to the script, and assert 
 
 This pattern follows the `/update-config` skill's "Constructing a Hook (with verification)" workflow.
 
+## Parse-check every script first
+
+Before any behavioural test, the bats suite should parse-check each script — `bash -n <script>` for shell scripts, `python3 -m py_compile <script>` for the Python helper. A regression that breaks parsing is the most disruptive failure mode for a hook script: it surfaces as the hook erroring on every tool invocation until fixed, often with confusing error messages that point at a token deep inside an `additionalContext` JSON literal rather than at the real cause. `bash -n` runs the syntax check without execution; it is fast and catches the whole class — apostrophes that close a single-quoted shell argument (see `feedback_shell_quoting_review.md`), unclosed strings, unmatched braces or parens, malformed heredocs, trailing-backslash continuation errors.
+
+Bats sketch:
+
+```bash
+@test "check-memory-synthesis.sh parses" {
+  run bash -n "$BATS_TEST_DIRNAME/../hooks/check-memory-synthesis.sh"
+  [ "$status" -eq 0 ]
+}
+```
+
+Repeat for every shell script in `hooks/`; for `jsonl-to-md.py` substitute `python3 -m py_compile`. These parse-checks are the precondition that makes the behavioural assertions below meaningful — a script that fails to parse cannot be tested behaviourally at all.
+
 ## `check-memory-synthesis.sh`
+
+<!-- See also: `TODO.md` "Tests" section references this table. The TODO
+     deliberately does not enumerate cases; this table is the authoritative
+     source for the per-case test design. Edits to the test cases here do
+     not require TODO updates unless a whole script's worth of cases is
+     added or removed. -->
 
 | Case | Stdin payload | Expected |
 |---|---|---|
@@ -28,6 +49,10 @@ This pattern follows the `/update-config` skill's "Constructing a Hook (with ver
 | Edit-shaped input | `{"tool_name":"Edit","tool_input":{"file_path":"/home/foo/.claude/memory/x.md","old_string":"a","new_string":"b"}}` | exit 0, JSON emitted (Edit and Write share the `file_path` field, so the script handles both) |
 | Malformed JSON on stdin | `not-json` | exit 0, no output (the script must never block the tool) |
 | Missing `file_path` | `{"tool_name":"Write","tool_input":{}}` | exit 0, no output |
+| `user_*.md` (user profile memory) | `{"tool_name":"Edit","tool_input":{"file_path":"/home/foo/.claude/memory/user_alice.md"}}` | exit 0, JSON emitted with a *path-aware* `additionalContext` — synthesis question still applies ("is this addition at home in this user profile, or does it belong in a feedback memory?") but the sanitization clause is dropped (named attribution is the point of these files). |
+| Memory-seed source path | `{"tool_name":"Edit","tool_input":{"file_path":"/path/to/shannon-checkout/memory-seed/feedback_x.md"}}` | exit 0, default reminder emitted — `*/memory-seed/*.md` matches via the third case branch, so when a maintainer's Claude instance edits the seed source directly it gets the same synthesis-check coverage as when a user's Claude edits the installed copy at `~/.claude/memory/`. |
+
+**`MEMORY.md` is excluded by `settings.json`, not by the script.** The hook entry's `if` field is set to skip MEMORY.md so the harness does not spawn the script for index edits — there is nothing useful to prompt for at the index level. That exclusion is a `settings.json` test rather than a script test: assert that the hook entry's `if` field, applied to `{"tool_input":{"file_path":"/home/foo/.claude/memory/MEMORY.md"}}`, evaluates to "do not fire".
 
 The malformed-input case is **load-bearing**: a subtle regression in error handling could silently start blocking memory writes, and the user would see the Write fail with no obvious cause. This test is the canary for that regression. The same property should hold for any future hook script Shannon ships.
 

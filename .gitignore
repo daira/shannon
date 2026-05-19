@@ -2,6 +2,10 @@
 .*.swp
 *~
 
+# Python bytecode caches (from running `py_compile` etc. on hooks/jsonl-to-md.py)
+__pycache__/
+*.pyc
+
 # Conventional directories we like to use for temporary and more permanent files that are not checked in.
 # We recommend these be ignored globally, but we'll do it here in case they are not.
 tmp/
