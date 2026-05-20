@@ -23,4 +23,9 @@ jobs:
           sudo apt-get install -y bats jq
 
       - name: Run the bats suite
-        run: bats tests/
+        run: |
+          for f in tests/*.bats; do
+            echo "*** $f ***"
+            bats "$f"
+            echo ""
+          done
