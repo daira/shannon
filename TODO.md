@@ -9,7 +9,8 @@ Tracking list for Shannon work. Entries are brief; details for any item live in 
 - [x] Write the bats suite for `check-memory-synthesis.sh`. Lives at `tests/check-memory-synthesis.bats`; 13 tests covering all rows of the per-case table in `docs/testing.md`, including a parse-check. Mutation-tested to confirm the assertions actually catch regressions (changing the project-scoped reminder text caused only the project-scoped row to fail).
 - [ ] Add `tests/fixtures/` (stdin payloads, fixture memory corpora at green / yellow / red sizes, sample transcript).
 - [ ] `.github/workflows/test.yml` running `bats tests/` via `bats-core/bats-action`.
-- [ ] `session-start.sh` and `save-session.sh` test cases.
+- [x] `session-start.sh` test cases. Lives at `tests/session-start.bats`; 10 tests covering all rows of the per-case table (parse-check, reminder text always emitted, empty / green / yellow / red corpus sizing, CLAUDE.md / AGENTS.md project-context presence and absence). Uses per-test HOME and CLAUDE_PROJECT_DIR overrides into `BATS_TEST_TMPDIR` plus a dynamic `size_corpus` helper rather than checked-in fixture directories. Surfaced an empty-corpus crash in the script, fixed in the preceding commit.
+- [ ] `save-session.sh` test cases.
 - [x] `check-tmp-path.sh` test cases. Lives at `tests/check-tmp-path.bats`; 10 tests covering all rows of the per-case table in `docs/testing.md` (the four trigger patterns, the `/tmp/claude-*` exemption, two non-trigger / false-positive cases, missing-field and malformed-JSON canaries, plus a parse-check). Mutation-tested: changing the exemption pattern caused only the exempt-case test to fail.
 
 ## Hook scripts
