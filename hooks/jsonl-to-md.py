@@ -120,7 +120,12 @@ def render_message(role: str, content, max_lines: int) -> str:
 
 def convert(jsonl_path: Path, max_lines: int) -> str:
     out = [f"# Session transcript: {jsonl_path.name}\n\n"]
-    with jsonl_path.open() as f:
+    # Tolerate non-UTF-8 bytes: replace them with U+FFFD rather than
+    # aborting. Claude Code transcripts are expected to be UTF-8 JSONL,
+    # but if a stray byte sequence is somehow embedded (e.g. a tool
+    # result that includes binary output), we'd rather render a slightly
+    # garbled session than refuse to render anything at all.
+    with jsonl_path.open(encoding="utf-8", errors="replace") as f:
         for line in f:
             line = line.strip()
             if not line:
