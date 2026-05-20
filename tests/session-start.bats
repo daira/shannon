@@ -11,6 +11,10 @@ setup() {
     mkdir -p "$HOME/.claude/memory"
     export CLAUDE_PROJECT_DIR="$BATS_TEST_TMPDIR/proj"
     mkdir -p "$CLAUDE_PROJECT_DIR"
+    # Shrink the context window so the corpus thresholds drop from
+    # 50k/100k tokens to 50/100 tokens (200/400 bytes) — keeping the
+    # ratio identical while making the fixture sizes negligible.
+    export SHANNON_CONTEXT_SIZE=1000
 }
 
 # Write a memory corpus of approximately target_bytes total, spread across
@@ -48,28 +52,28 @@ size_corpus() {
     [[ "$output" != *"⚠️"* ]]
 }
 
-@test "green corpus (<50k tokens) emits no warning" {
-    size_corpus 100000   # ~25k tokens
+@test "green corpus (below yellow threshold) emits no warning" {
+    size_corpus 100   # ~25 tokens at SHANNON_CONTEXT_SIZE=1000 (under the 50-token yellow threshold)
     run bash "$SCRIPT"
     [ "$status" -eq 0 ]
     [[ "$output" != *"⚠️"* ]]
 }
 
-@test "yellow corpus (50k–100k tokens) emits yellow warning only" {
-    size_corpus 280000   # ~70k tokens
+@test "yellow corpus (between yellow and red thresholds) emits yellow warning only" {
+    size_corpus 280   # ~70 tokens (between yellow 50 and red 100)
     run bash "$SCRIPT"
     [ "$status" -eq 0 ]
     [[ "$output" == *"⚠️"* ]]
-    [[ "$output" == *"(yellow on 1M)"* ]]
-    [[ "$output" != *">100k tokens"* ]]
+    [[ "$output" == *"yellow band"* ]]
+    [[ "$output" != *"red band"* ]]
 }
 
-@test "red corpus (>100k tokens) emits red warning" {
-    size_corpus 500000   # ~125k tokens
+@test "red corpus (above red threshold) emits red warning" {
+    size_corpus 500   # ~125 tokens (above the 100-token red threshold)
     run bash "$SCRIPT"
     [ "$status" -eq 0 ]
     [[ "$output" == *"⚠️"* ]]
-    [[ "$output" == *">100k tokens"* ]]
+    [[ "$output" == *"red band"* ]]
 }
 
 @test "project CLAUDE.md present emits project-context line" {

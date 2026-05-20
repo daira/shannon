@@ -32,7 +32,15 @@ else
 fi
 tokens=$(( bytes / 4 ))
 
-echo "Memory corpus: ${count} files, ~${tokens} tokens (est. bytes/4). On a 1M-context model: Green <50k, Yellow 50k-100k, Red >100k."
+# Bands scale with the model's context window. Defaults to 1M tokens
+# (Opus / Sonnet long-context models); override via SHANNON_CONTEXT_SIZE
+# for smaller models or for tests. Yellow is the 5%-of-context mark, red
+# is the 10%-of-context mark — per `feedback_memory_size_budget.md`.
+ctx_size=${SHANNON_CONTEXT_SIZE:-1000000}
+yellow_threshold=$(( ctx_size / 20 ))
+red_threshold=$(( ctx_size / 10 ))
+
+echo "Memory corpus: ${count} files, ~${tokens} tokens (est. bytes/4). Bands (for ${ctx_size}-token context window): Green <${yellow_threshold}, Yellow ${yellow_threshold}–${red_threshold}, Red >${red_threshold}."
 
 project_dir="${CLAUDE_PROJECT_DIR:-$(pwd)}"
 project_files=()
@@ -46,8 +54,8 @@ if [ "${#project_files[@]}" -gt 0 ]; then
     echo "Project context (${names} in ${project_dir}): ~${project_tokens} tokens."
 fi
 
-if [ "${tokens:-0}" -gt 100000 ]; then
-    echo '⚠️  Memory corpus >100k tokens. Even on a 1M-context model this is large; propose pruning candidates.'
-elif [ "${tokens:-0}" -gt 50000 ]; then
-    echo '⚠️  Memory corpus >50k tokens (yellow on 1M). Watch for further growth; consider consolidating thin or near-duplicate memories next time one is added.'
+if [ "${tokens:-0}" -gt "$red_threshold" ]; then
+    echo "⚠️  Memory corpus is in the red band (>${red_threshold} tokens, >10% of context). Propose pruning candidates."
+elif [ "${tokens:-0}" -gt "$yellow_threshold" ]; then
+    echo "⚠️  Memory corpus is in the yellow band (>${yellow_threshold} tokens, >5% of context). Watch for further growth; consider consolidating thin or near-duplicate memories next time one is added."
 fi
