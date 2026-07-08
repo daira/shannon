@@ -9,10 +9,11 @@ set -euo pipefail
 
 MODE="copy"
 DRY_RUN=0
+FORCE=0
 
 usage() {
     cat <<'EOF'
-Usage: ./install.sh [--copy | --link] [--dry-run]
+Usage: ./install.sh [--copy | --link] [--force] [--dry-run]
 
 Install Shannon's hooks, seed memories, and CLAUDE.md template into
 ~/.claude/.
@@ -31,8 +32,14 @@ Shannon can be installed in two modes:
              support (Linux / macOS / Windows Subsystem for Linux).
 
 In both modes, existing files or links at the destination are skipped,
-not overwritten. To overwrite, manually move the existing file aside
-first and re-run.
+not overwritten, unless --force is given. A skipped destination that is a
+broken symlink is reported as a warning suggesting --force.
+
+  --force    Replace existing destinations instead of skipping them. A
+             regular file is backed up to <file>.bak.<timestamp> first; an
+             existing symlink is simply replaced (this repairs broken or
+             mis-pointed links on re-run). Does not affect the settings.json
+             merge, which already merges and backs up.
 
   --dry-run  Print what would be done without making changes.
 
@@ -45,6 +52,7 @@ while [ $# -gt 0 ]; do
         --copy) MODE="copy" ;;
         --link) MODE="link" ;;
         --dry-run) DRY_RUN=1 ;;
+        --force) FORCE=1 ;;
         --help|-h) usage; exit 0 ;;
         *) printf 'install.sh: unknown option: %s\n' "$1" >&2; usage >&2; exit 2 ;;
     esac
@@ -84,11 +92,40 @@ if [ "$MODE" = "link" ]; then
 fi
 
 install_file() {
-    local src="$1" dst="$2"
-    # -e || -L: catch broken symlinks too, which -e alone misses
+    local src="$1" dst="$2" bak
+    # -e || -L: catch broken symlinks too, which -e alone misses.
     if [ -e "$dst" ] || [ -L "$dst" ]; then
-        printf 'skip (exists): %s\n' "$dst"
-        return
+        if [ "$FORCE" -eq 0 ]; then
+            # A broken symlink (link present, target missing) is almost
+            # certainly a mistake to leave in place — warn and point at
+            # --force rather than silently skipping it.
+            if [ -L "$dst" ] && [ ! -e "$dst" ]; then
+                printf 'skip (BROKEN symlink): %s -> %s — re-run with --force to repair\n' \
+                    "$dst" "$(readlink "$dst")" >&2
+            else
+                printf 'skip (exists): %s\n' "$dst"
+            fi
+            return
+        fi
+        # --force: replace the existing destination. A symlink carries no
+        # content of its own, so just remove it (this repairs a broken or
+        # mis-pointed link on re-run); a regular file may hold user edits,
+        # so back it up first.
+        if [ -L "$dst" ]; then
+            if [ "$DRY_RUN" -eq 1 ]; then
+                printf '[dry-run] rm %s (replace existing symlink)\n' "$dst"
+            else
+                rm -f "$dst"
+            fi
+        else
+            bak="$dst.bak.$(date +%s)"
+            if [ "$DRY_RUN" -eq 1 ]; then
+                printf '[dry-run] mv %s %s (backup before replace)\n' "$dst" "$bak"
+            else
+                mv "$dst" "$bak"
+                printf 'backed up: %s -> %s\n' "$dst" "$bak"
+            fi
+        fi
     fi
     case "$MODE" in
         copy)
