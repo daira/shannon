@@ -3,7 +3,8 @@
 # project's `keep/` directory.
 #
 # Invocation:
-#   save-session.sh <transcript-path>
+#   save-session.sh <transcript-path> [jsonl-to-md.py args...]
+# Extra args (e.g. --include-thinking) are forwarded to the Markdown renderer.
 #
 # Destination: "${CLAUDE_PROJECT_DIR:-$(pwd)}/keep/claude-session-<ts>.jsonl"
 # plus a Markdown rendering via ~/.claude/jsonl-to-md.py.
@@ -18,6 +19,7 @@ if [ "$#" -lt 1 ] || [ -z "${1:-}" ]; then
 fi
 
 transcript="$1"
+shift  # remaining args are forwarded to jsonl-to-md.py (e.g. --include-thinking)
 
 if [ ! -f "$transcript" ]; then
     echo "save-session.sh: transcript '$transcript' not found" >&2
@@ -32,6 +34,6 @@ ts=$(date +%Y%m%d-%H%M%S)
 out="${keep}/claude-session-${ts}"
 
 cp "$transcript" "${out}.jsonl"
-python3 "${HOME}/.claude/jsonl-to-md.py" "${out}.jsonl" "${out}.md"
+python3 "${HOME}/.claude/jsonl-to-md.py" "${out}.jsonl" "${out}.md" "$@"
 
 echo "saved: ${out}.jsonl and .md"

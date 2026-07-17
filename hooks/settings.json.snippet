@@ -7,7 +7,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "transcript=$(jq -re '.transcript_path') && exec ~/.claude/save-session.sh \"$transcript\""
+            "command": "transcript=$(jq -re '.transcript_path') && exec ~/.claude/save-session.sh \"$transcript\" --include-thinking"
           }
         ]
       }
