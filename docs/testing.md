@@ -25,6 +25,7 @@ Shannon ships several hook scripts in `hooks/`:
 
 - `check-memory-synthesis.sh` — `PreToolUse` hook that fires on `Write|Edit` and injects a synthesis-check reminder when the target path looks like a memory file.
 - `check-tmp-path.sh` — `PreToolUse` hook for the `Bash` tool that reminds the agent about path conventions, in particular not to use the global `/tmp`.
+- `check-portable-commands.sh` — `PreToolUse` hook for the `Bash` tool that denies a command invoking, in command position, a platform-native tool from a native/preferred table (seeded with `sed`/`gsed`) when the preferred implementation is installed under another name and is a different binary.
 - `session-start.sh` — `SessionStart` / `PostCompact` hook that emits the memory-re-read reminder and reports the corpus size.
 - `save-session.sh` — `PreCompact` hook that snapshots the current transcript to `<project>/keep/`.
 
@@ -95,6 +96,30 @@ The script inspects `.tool_input.command` for references to `/tmp/`. It emits a 
 
 The malformed-input case is **load-bearing** here too — and arguably more so than for `check-memory-synthesis.sh`, because a blocking failure on a Bash `PreToolUse` hook would break *every* Bash command the agent runs, not just memory edits.
 
+### `check-portable-commands.sh`
+
+The script inspects `.tool_input.command` for an invocation, in command position, of a native tool listed in its table, and emits a `permissionDecision: deny` naming the preferred replacement. An entry is active only when the preferred tool is on PATH and resolves to a different file from the native one, so the tests build their own PATH: a stub directory with distinct `sed` and `gsed` executables, plus symlinks to the real `bash`, `jq`, `grep`, and `realpath`. Unless stated otherwise, the expected result is exit 0 with a deny JSON whose reason contains `` `sed` (use `gsed`) ``.
+
+| Case | `.tool_input.command` | Expected |
+|---|---|---|
+| After a pipe | `grep x file \| sed -n 1p` | deny |
+| At the start of the command | `sed -i s/a/b/ file` | deny |
+| Preferred tool itself | `grep x file \| gsed -n 1p` | exit 0, no output |
+| After variable assignments | `LC_ALL=C FOO=1 sed -e p file` | deny |
+| After `xargs` with options | `cat list \| xargs -0 sed -i s/a/b/` | deny |
+| After `find -exec` | `find . -name '*.md' -exec sed -i 's/a/b/' {} +` | deny |
+| By absolute path | `/usr/bin/sed -n 1p file` | deny (an explicit path to the native tool is still the native tool) |
+| On a later line of a multi-line command | `echo first` newline `sed -n 1p file` | deny |
+| Mentioned in prose | `echo "we used sed here"` | exit 0, no output |
+| As an argument | `git log --oneline \| grep sed` | exit 0, no output |
+| As a word prefix | `echo sedimentary` | exit 0, no output |
+| Preferred tool absent | stub `gsed` removed; `grep x file \| sed -n 1p` | exit 0, no output (entry inert, as on a machine without GNU sed under another name) |
+| Native name is the preferred tool | stub `sed` replaced by a symlink to `gsed`; `grep x file \| sed -n 1p` | exit 0, no output (entry inert, as on a GNU system) |
+| Missing `command` field | `{"tool_input":{}}` | exit 0, no output |
+| Malformed JSON on stdin | `not-json` | exit 0, no output (must never block the Bash tool) |
+
+Known limitation, not tested: a heredoc body line that begins with the tool name is indistinguishable from a command line and is denied.
+
 ### `session-start.sh`
 
 | Case | Setup | Expected |
@@ -136,6 +161,7 @@ shannon/
 ├── tests/
 │   ├── check-memory-synthesis.bats
 │   ├── check-tmp-path.bats
+│   ├── check-portable-commands.bats
 │   ├── session-start.bats
 │   ├── save-session.bats
 │   └── fixtures/
@@ -145,7 +171,7 @@ shannon/
         └── test.yml
 ```
 
-`check-memory-synthesis.bats` and `check-tmp-path.bats` use inline payloads (no fixture files). `session-start.bats` builds its memory-corpus and project-context directories dynamically in `setup()`, scoped to `$BATS_TEST_TMPDIR` and shrunk via `SHANNON_CONTEXT_SIZE=1000`. Only `save-session.bats` needs a checked-in fixture (`valid-transcript.jsonl`) so the round-trip can be verified deterministically.
+`check-memory-synthesis.bats`, `check-tmp-path.bats`, and `check-portable-commands.bats` use inline payloads (no fixture files); the last builds its stub-and-symlink PATH in `setup()` under `$BATS_TEST_TMPDIR`. `session-start.bats` builds its memory-corpus and project-context directories dynamically in `setup()`, scoped to `$BATS_TEST_TMPDIR` and shrunk via `SHANNON_CONTEXT_SIZE=1000`. Only `save-session.bats` needs a checked-in fixture (`valid-transcript.jsonl`) so the round-trip can be verified deterministically.
 
 ## CI
 
