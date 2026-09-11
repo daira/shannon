@@ -15,6 +15,15 @@ Tracking list for Shannon work. Entries are brief; details for any item live in 
 - [x] `save-session.sh` test cases. Lives at `tests/save-session.bats`; see `docs/testing.md` for the per-case table. Uses checked-in fixture transcripts under `tests/fixtures/` (well-formed, partially malformed, all-malformed, and two non-UTF-8 variants). Surfaced the non-UTF-8 traceback behaviour in `jsonl-to-md.py`, tolerated via the preceding commit through `errors="replace"`.
 - [x] `check-tmp-path.sh` test cases. Lives at `tests/check-tmp-path.bats`; 10 tests covering all rows of the per-case table in `docs/testing.md` (the four trigger patterns, the `/tmp/claude-*` exemption, two non-trigger / false-positive cases, missing-field and malformed-JSON canaries, plus a parse-check). Mutation-tested: changing the exemption pattern caused only the exempt-case test to fail.
 
+- [ ] `install.sh` test cases (the settings.json merge). The jq filter now
+  merges both `hooks` entries (append / update-shannon-managed / skip-user-
+  customized, keyed by the `_shannon` marker) and top-level `env` keys
+  (append when absent / ok when already equal / skip when the user set a
+  different value; added 2026-08-13 for `GIT_SEQUENCE_EDITOR`/`GIT_EDITOR`).
+  Neither path has a bats suite; the env path has only been checked by
+  running the extracted filter by hand against an empty and a
+  user-customized target. Per-case table to go in `docs/testing.md`.
+
 ## Hook scripts
 
 - [x] Move `check-memory-synthesis.sh`, `session-start.sh`, and `save-session.sh` into `hooks/`. The three scripts now live in `shannon/hooks/` and the maintainer's `~/.claude/<name>.sh` paths are symlinks pointing at them. Content is verbatim from the maintainer's setup (no separate sanitization pass was needed — the scripts were already generic).
