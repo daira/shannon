@@ -119,9 +119,9 @@ shannon/
   cross-reference comments are the mechanism that catches future drift:
   an editor of one file sees, in that file, the names of the parallel
   copies that also need to change. Real instances in this repo: the
-  `<project>/tmp/` rationale appears in both
+  `<project>/work/` rationale appears in both
   `hooks/check-tmp-path.sh`'s reminder text and (the global)
-  `feedback_use_repo_tmp.md`'s body; `docs/testing.md`'s per-case test
+  `feedback_repo_scratch_dirs.md`'s body; `docs/testing.md`'s per-case test
   tables are cross-referenced from `TODO.md`'s Tests section. The
   body-and-`MEMORY.md`-summary relationship for all memory files is
   treated as implicit cross-reference (see

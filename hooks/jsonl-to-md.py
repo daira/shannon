@@ -58,13 +58,19 @@ def render_tool_result(block: dict, max_lines: int) -> str:
     return f"{marker}\n```\n{truncated}\n```\n\n"
 
 
-def render_assistant_block(block: dict) -> str:
+def render_assistant_block(block: dict, include_thinking: bool = False) -> str:
     btype = block.get("type")
     if btype == "text":
         return block.get("text", "").rstrip() + "\n\n"
     elif btype == "thinking":
-        # Skip thinking — the CLI hides it by default.
-        return ""
+        # Hidden by default (the CLI hides it too); shown with --include-thinking.
+        if not include_thinking:
+            return ""
+        text = block.get("thinking", "").strip()
+        if not text:
+            return ""
+        quoted = "\n".join(": " + line for line in text.splitlines())
+        return f"**Thinking:**\n\n{quoted}\n\n"
     elif btype == "tool_use":
         return render_tool_call(block)
     elif btype == "image":
@@ -90,10 +96,10 @@ def quote_user_text(text: str) -> str:
     if not text:
         return ""
     else:
-        return "\n".join("> " + line if line else ">" for line in text.splitlines()) + "\n\n"
+        return "\n".join(">> " + line if line else ">>" for line in text.splitlines()) + "\n\n"
 
 
-def render_message(role: str, content, max_lines: int) -> str:
+def render_message(role: str, content, max_lines: int, include_thinking: bool = False) -> str:
     # User messages that are pure tool_result blocks are shown inline as the
     # result of the prior tool call, no quoting.
     if isinstance(content, list) and role == "user" and all(
@@ -113,12 +119,12 @@ def render_message(role: str, content, max_lines: int) -> str:
 
             return "".join(parts)
         else:
-            return "".join(render_assistant_block(b) for b in content)
+            return "".join(render_assistant_block(b, include_thinking) for b in content)
     else:
         return f"```json\n{json.dumps(content, indent=2)}\n```\n\n"
 
 
-def convert(jsonl_path: Path, max_lines: int) -> str:
+def convert(jsonl_path: Path, max_lines: int, include_thinking: bool = False) -> str:
     out = [f"# Session transcript: {jsonl_path.name}\n\n"]
     # Tolerate non-UTF-8 bytes: replace them with U+FFFD rather than
     # aborting. Claude Code transcripts are expected to be UTF-8 JSONL,
@@ -137,8 +143,8 @@ def convert(jsonl_path: Path, max_lines: int) -> str:
                 continue
 
             etype = evt.get("type")
-            if etype not in ("user", "assistant"):
-                continue
+            #if etype not in ("user", "assistant"):
+            #    continue
 
             msg = evt.get("message", {})
             role = msg.get("role", etype)
@@ -146,7 +152,7 @@ def convert(jsonl_path: Path, max_lines: int) -> str:
             if content is None:
                 continue
 
-            out.append(render_message(role, content, max_lines))
+            out.append(render_message(role, content, max_lines, include_thinking))
 
     return "".join(out)
 
@@ -155,6 +161,8 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--result-lines", type=int, default=30,
                         help="max lines of tool result output to show (default 30)")
+    parser.add_argument("--include-thinking", action="store_true",
+                        help="include assistant thinking/thought-summary blocks")
     parser.add_argument("input", help="input JSONL transcript")
     parser.add_argument("output", nargs="?", help="output Markdown file (default stdout)")
     args = parser.parse_args()
@@ -164,7 +172,7 @@ def main() -> int:
         print(f"error: {src} not found", file=sys.stderr)
         return 1
 
-    md = convert(src, args.result_lines)
+    md = convert(src, args.result_lines, args.include_thinking)
     if args.output:
         Path(args.output).write_text(md)
     else:

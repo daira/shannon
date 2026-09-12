@@ -29,7 +29,7 @@ feed_raw() {
     run feed_cmd 'touch /tmp/foo'
     [ "$status" -eq 0 ]
     [[ "$output" == *additionalContext* ]]
-    [[ "$output" == *"<project>/tmp/"* ]]
+    [[ "$output" == *"<project>/work/"* ]]
 }
 
 @test "bare /tmp argument (space-bounded) triggers reminder" {

@@ -1,4 +1,8 @@
 {
+  "env": {
+    "GIT_SEQUENCE_EDITOR": "true",
+    "GIT_EDITOR": "true"
+  },
   "hooks": {
     "PreCompact": [
       {
@@ -7,7 +11,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "transcript=$(jq -re '.transcript_path') && exec ~/.claude/save-session.sh \"$transcript\""
+            "command": "transcript=$(jq -re '.transcript_path') && exec ~/.claude/save-session.sh \"$transcript\" --include-thinking"
           }
         ]
       }
@@ -42,6 +46,10 @@
           {
             "type": "command",
             "command": "exec ~/.claude/check-tmp-path.sh"
+          },
+          {
+            "type": "command",
+            "command": "exec ~/.claude/check-portable-commands.sh"
           }
         ]
       }

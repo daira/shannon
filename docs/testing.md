@@ -25,6 +25,7 @@ Shannon ships several hook scripts in `hooks/`:
 
 - `check-memory-synthesis.sh` — `PreToolUse` hook that fires on `Write|Edit` and injects a synthesis-check reminder when the target path looks like a memory file.
 - `check-tmp-path.sh` — `PreToolUse` hook for the `Bash` tool that reminds the agent about path conventions, in particular not to use the global `/tmp`.
+- `check-portable-commands.sh` — `PreToolUse` hook for the `Bash` tool that denies a command invoking, in command position, a platform-native tool from a native/preferred table (seeded with `sed`/`gsed`) when the preferred implementation is installed under another name and is a different binary.
 - `session-start.sh` — `SessionStart` / `PostCompact` hook that emits the memory-re-read reminder and reports the corpus size.
 - `save-session.sh` — `PreCompact` hook that snapshots the current transcript to `<project>/keep/`.
 
@@ -95,6 +96,30 @@ The script inspects `.tool_input.command` for references to `/tmp/`. It emits a 
 
 The malformed-input case is **load-bearing** here too — and arguably more so than for `check-memory-synthesis.sh`, because a blocking failure on a Bash `PreToolUse` hook would break *every* Bash command the agent runs, not just memory edits.
 
+### `check-portable-commands.sh`
+
+The script inspects `.tool_input.command` for an invocation, in command position, of a native tool listed in its table, and emits a `permissionDecision: deny` naming the preferred replacement. An entry is active only when the preferred tool is on PATH and resolves to a different file from the native one, so the tests build their own PATH: a stub directory with distinct `sed` and `gsed` executables, plus symlinks to the real `bash`, `jq`, `grep`, and `realpath`. Unless stated otherwise, the expected result is exit 0 with a deny JSON whose reason contains `` `sed` (use `gsed`) ``.
+
+| Case | `.tool_input.command` | Expected |
+|---|---|---|
+| After a pipe | `grep x file \| sed -n 1p` | deny |
+| At the start of the command | `sed -i s/a/b/ file` | deny |
+| Preferred tool itself | `grep x file \| gsed -n 1p` | exit 0, no output |
+| After variable assignments | `LC_ALL=C FOO=1 sed -e p file` | deny |
+| After `xargs` with options | `cat list \| xargs -0 sed -i s/a/b/` | deny |
+| After `find -exec` | `find . -name '*.md' -exec sed -i 's/a/b/' {} +` | deny |
+| By absolute path | `/usr/bin/sed -n 1p file` | deny (an explicit path to the native tool is still the native tool) |
+| On a later line of a multi-line command | `echo first` newline `sed -n 1p file` | deny |
+| Mentioned in prose | `echo "we used sed here"` | exit 0, no output |
+| As an argument | `git log --oneline \| grep sed` | exit 0, no output |
+| As a word prefix | `echo sedimentary` | exit 0, no output |
+| Preferred tool absent | stub `gsed` removed; `grep x file \| sed -n 1p` | exit 0, no output (entry inert, as on a machine without GNU sed under another name) |
+| Native name is the preferred tool | stub `sed` replaced by a symlink to `gsed`; `grep x file \| sed -n 1p` | exit 0, no output (entry inert, as on a GNU system) |
+| Missing `command` field | `{"tool_input":{}}` | exit 0, no output |
+| Malformed JSON on stdin | `not-json` | exit 0, no output (must never block the Bash tool) |
+
+Known limitation, not tested: a heredoc body line that begins with the tool name is indistinguishable from a command line and is denied.
+
 ### `session-start.sh`
 
 | Case | Setup | Expected |
@@ -123,6 +148,30 @@ The malformed-input case is **load-bearing** here too — and arguably more so t
 
 **Strategy:** fixture transcripts under `tests/fixtures/`, plus per-test overrides of `HOME` and `CLAUDE_PROJECT_DIR` into `$BATS_TEST_TMPDIR`. The script's hardcoded `${HOME}/.claude/jsonl-to-md.py` lookup is resolved by symlinking the shipped helper into the per-test `$HOME/.claude/` directory at `setup()`, so the test doesn't depend on whether the user has the helper installed.
 
+## Testing the installer
+
+`install.sh` is tested end to end. Each test runs the installer with `CLAUDE_DIR` pointing at a fresh directory under `$BATS_TEST_TMPDIR` (the installer's destination override), so the real `~/.claude` is never touched, and asserts on the exit code, the report lines, and the files placed. One hook script and one seed memory serve as spot checks; the installer treats every file of a kind the same way.
+
+### `install.sh`
+
+| Case | Setup and invocation | Expected |
+|---|---|---|
+| `--help` | `install.sh --help` | exit 0, usage printed |
+| Unknown option | `install.sh --bogus` | exit 2, "unknown option" and the usage on stderr |
+| Fresh copy install | empty destination; `install.sh` | exit 0; hook scripts, `jsonl-to-md.py`, seed memories, and `CLAUDE.md` are regular files identical to their sources; `settings.json` is the snippet verbatim; "installed (copy):" lines and the copy-mode notes |
+| Fresh link install | empty destination; `install.sh --link` | exit 0; the destinations are symlinks to the checkout's files; "installed (link):" lines and the link-mode notes |
+| Second run | after a copy install; `install.sh` | exit 0; every file reported "skip (exists):" and nothing installed; the settings are re-merged ("update (shannon-managed):" per matcher, "ok (already set):" per env key) with a backup of the previous `settings.json` |
+| `--dry-run` | empty destination; `install.sh --dry-run` | exit 0, "[dry-run]" lines for the directories, the copies, and the snippet; nothing created |
+| Broken symlink, no `--force` | the destination hook is a symlink to a missing target; `install.sh` | exit 0, "skip (BROKEN symlink): ... re-run with --force to repair" on stderr; the broken link remains |
+| `--force --link` on a broken symlink | as above; `install.sh --link --force` | exit 0; the link now points at the checkout's file |
+| `--force` on a mis-pointed symlink | the destination hook links to another existing file; `install.sh --link --force` | exit 0; the link is replaced; its old target is untouched |
+| `--force` on a regular file | the destination seed memory holds user edits; `install.sh --force` | exit 0, "backed up:" line; exactly one `<file>.bak.<timestamp>` holding the edits; the destination now equals the seed |
+| `--force --dry-run` | as above; `install.sh --force --dry-run` | exit 0, "[dry-run] mv ... (backup before replace)" and "[dry-run] cp ..." lines; the file and the rest of the destination unchanged |
+| Settings merge with user customizations | a `settings.json` with a user `PreToolUse`/`Bash` entry (no `_shannon` marker), `GIT_EDITOR` set to another value, and an unrelated key; `install.sh` | exit 0; "append:" for the other events and for `GIT_SEQUENCE_EDITOR`, "skip (user-customized):" for the Bash entry and for `GIT_EDITOR`; the result keeps the user's entry, values, and unrelated key, gains Shannon's marked entries, and the previous file is backed up |
+| Missing `jq` | an existing `settings.json`; a PATH holding only `bash`, `dirname`, `mkdir`, `cp`, and `cat`; `install.sh` | exit 1, "jq is required to merge" on stderr |
+
+Not covered: the symlink-support probe failing (it needs a filesystem without symlinks), and a checkout missing one of `hooks/`, `memory-seed/`, or `claude-md/`.
+
 ## Framework
 
 Use **bats** ([bats-core](https://bats-core.readthedocs.io/)): the standard Bash test framework. It is installable via `apt`, `brew`, `nix`, or `npm`, and there is a `bats-core/bats-action` GitHub Action for CI. Plain shell tests would work too, but bats provides setup / teardown, clearer test naming, and tap-style output that CI parsers handle well.
@@ -136,6 +185,8 @@ shannon/
 ├── tests/
 │   ├── check-memory-synthesis.bats
 │   ├── check-tmp-path.bats
+│   ├── check-portable-commands.bats
+│   ├── install.bats
 │   ├── session-start.bats
 │   ├── save-session.bats
 │   └── fixtures/
@@ -145,7 +196,7 @@ shannon/
         └── test.yml
 ```
 
-`check-memory-synthesis.bats` and `check-tmp-path.bats` use inline payloads (no fixture files). `session-start.bats` builds its memory-corpus and project-context directories dynamically in `setup()`, scoped to `$BATS_TEST_TMPDIR` and shrunk via `SHANNON_CONTEXT_SIZE=1000`. Only `save-session.bats` needs a checked-in fixture (`valid-transcript.jsonl`) so the round-trip can be verified deterministically.
+`check-memory-synthesis.bats`, `check-tmp-path.bats`, and `check-portable-commands.bats` use inline payloads (no fixture files); the last builds its stub-and-symlink PATH in `setup()` under `$BATS_TEST_TMPDIR`. `session-start.bats` builds its memory-corpus and project-context directories dynamically in `setup()`, scoped to `$BATS_TEST_TMPDIR` and shrunk via `SHANNON_CONTEXT_SIZE=1000`. `install.bats` runs the installer against a per-test `CLAUDE_DIR` under `$BATS_TEST_TMPDIR`. Only `save-session.bats` needs a checked-in fixture (`valid-transcript.jsonl`) so the round-trip can be verified deterministically.
 
 ## CI
 

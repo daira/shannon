@@ -198,6 +198,8 @@ EOF
     # than matching by script name, since it survives script renames and
     # doesn't require maintaining a hardcoded allowlist here.
     # Other events / matchers in the target settings.json are untouched.
+    # Top-level "env" keys from the snippet are appended when absent; a key the
+    # user has set to a different value is left alone and reported.
     filter=$(cat <<'JQ_FILTER'
 def is_shannon_entry:
   ._shannon == true;
@@ -226,6 +228,18 @@ reduce ($sHooks | to_entries[]) as $eventPair (
     end
   )
 )
+| ($s.env // {}) as $sEnv
+| reduce ($sEnv | to_entries[]) as $envPair (.;
+    if (.result.env[$envPair.key] // null) == null then
+      .result.env //= {} |
+      .result.env[$envPair.key] = $envPair.value |
+      .report += ["append: env/\($envPair.key)"]
+    elif .result.env[$envPair.key] == $envPair.value then
+      .report += ["ok (already set): env/\($envPair.key)"]
+    else
+      .report += ["skip (user-customized): env/\($envPair.key)"]
+    end
+  )
 JQ_FILTER
 )
 
