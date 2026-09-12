@@ -148,6 +148,30 @@ Known limitation, not tested: a heredoc body line that begins with the tool name
 
 **Strategy:** fixture transcripts under `tests/fixtures/`, plus per-test overrides of `HOME` and `CLAUDE_PROJECT_DIR` into `$BATS_TEST_TMPDIR`. The script's hardcoded `${HOME}/.claude/jsonl-to-md.py` lookup is resolved by symlinking the shipped helper into the per-test `$HOME/.claude/` directory at `setup()`, so the test doesn't depend on whether the user has the helper installed.
 
+## Testing the installer
+
+`install.sh` is tested end to end. Each test runs the installer with `CLAUDE_DIR` pointing at a fresh directory under `$BATS_TEST_TMPDIR` (the installer's destination override), so the real `~/.claude` is never touched, and asserts on the exit code, the report lines, and the files placed. One hook script and one seed memory serve as spot checks; the installer treats every file of a kind the same way.
+
+### `install.sh`
+
+| Case | Setup and invocation | Expected |
+|---|---|---|
+| `--help` | `install.sh --help` | exit 0, usage printed |
+| Unknown option | `install.sh --bogus` | exit 2, "unknown option" and the usage on stderr |
+| Fresh copy install | empty destination; `install.sh` | exit 0; hook scripts, `jsonl-to-md.py`, seed memories, and `CLAUDE.md` are regular files identical to their sources; `settings.json` is the snippet verbatim; "installed (copy):" lines and the copy-mode notes |
+| Fresh link install | empty destination; `install.sh --link` | exit 0; the destinations are symlinks to the checkout's files; "installed (link):" lines and the link-mode notes |
+| Second run | after a copy install; `install.sh` | exit 0; every file reported "skip (exists):" and nothing installed; the settings are re-merged ("update (shannon-managed):" per matcher, "ok (already set):" per env key) with a backup of the previous `settings.json` |
+| `--dry-run` | empty destination; `install.sh --dry-run` | exit 0, "[dry-run]" lines for the directories, the copies, and the snippet; nothing created |
+| Broken symlink, no `--force` | the destination hook is a symlink to a missing target; `install.sh` | exit 0, "skip (BROKEN symlink): ... re-run with --force to repair" on stderr; the broken link remains |
+| `--force --link` on a broken symlink | as above; `install.sh --link --force` | exit 0; the link now points at the checkout's file |
+| `--force` on a mis-pointed symlink | the destination hook links to another existing file; `install.sh --link --force` | exit 0; the link is replaced; its old target is untouched |
+| `--force` on a regular file | the destination seed memory holds user edits; `install.sh --force` | exit 0, "backed up:" line; exactly one `<file>.bak.<timestamp>` holding the edits; the destination now equals the seed |
+| `--force --dry-run` | as above; `install.sh --force --dry-run` | exit 0, "[dry-run] mv ... (backup before replace)" and "[dry-run] cp ..." lines; the file and the rest of the destination unchanged |
+| Settings merge with user customizations | a `settings.json` with a user `PreToolUse`/`Bash` entry (no `_shannon` marker), `GIT_EDITOR` set to another value, and an unrelated key; `install.sh` | exit 0; "append:" for the other events and for `GIT_SEQUENCE_EDITOR`, "skip (user-customized):" for the Bash entry and for `GIT_EDITOR`; the result keeps the user's entry, values, and unrelated key, gains Shannon's marked entries, and the previous file is backed up |
+| Missing `jq` | an existing `settings.json`; a PATH holding only `bash`, `dirname`, `mkdir`, `cp`, and `cat`; `install.sh` | exit 1, "jq is required to merge" on stderr |
+
+Not covered: the symlink-support probe failing (it needs a filesystem without symlinks), and a checkout missing one of `hooks/`, `memory-seed/`, or `claude-md/`.
+
 ## Framework
 
 Use **bats** ([bats-core](https://bats-core.readthedocs.io/)): the standard Bash test framework. It is installable via `apt`, `brew`, `nix`, or `npm`, and there is a `bats-core/bats-action` GitHub Action for CI. Plain shell tests would work too, but bats provides setup / teardown, clearer test naming, and tap-style output that CI parsers handle well.
@@ -162,6 +186,7 @@ shannon/
 │   ├── check-memory-synthesis.bats
 │   ├── check-tmp-path.bats
 │   ├── check-portable-commands.bats
+│   ├── install.bats
 │   ├── session-start.bats
 │   ├── save-session.bats
 │   └── fixtures/
@@ -171,7 +196,7 @@ shannon/
         └── test.yml
 ```
 
-`check-memory-synthesis.bats`, `check-tmp-path.bats`, and `check-portable-commands.bats` use inline payloads (no fixture files); the last builds its stub-and-symlink PATH in `setup()` under `$BATS_TEST_TMPDIR`. `session-start.bats` builds its memory-corpus and project-context directories dynamically in `setup()`, scoped to `$BATS_TEST_TMPDIR` and shrunk via `SHANNON_CONTEXT_SIZE=1000`. Only `save-session.bats` needs a checked-in fixture (`valid-transcript.jsonl`) so the round-trip can be verified deterministically.
+`check-memory-synthesis.bats`, `check-tmp-path.bats`, and `check-portable-commands.bats` use inline payloads (no fixture files); the last builds its stub-and-symlink PATH in `setup()` under `$BATS_TEST_TMPDIR`. `session-start.bats` builds its memory-corpus and project-context directories dynamically in `setup()`, scoped to `$BATS_TEST_TMPDIR` and shrunk via `SHANNON_CONTEXT_SIZE=1000`. `install.bats` runs the installer against a per-test `CLAUDE_DIR` under `$BATS_TEST_TMPDIR`. Only `save-session.bats` needs a checked-in fixture (`valid-transcript.jsonl`) so the round-trip can be verified deterministically.
 
 ## CI
 
