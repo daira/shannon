@@ -9,13 +9,17 @@
 # session boundaries IF its context window can comfortably absorb the
 # corpus, overriding the system prompt's default on-demand memory
 # policy. See ~/.claude/memory/feedback_memory_size_budget.md for the
-# rationale.
+# rationale. It also warns that the harness's `<total_tokens>` marker is
+# a per-turn budget counter, not the context window, so the model does
+# not size its strategy from it.
 set -euo pipefail
 
 cat <<'EOF'
 Session-start and post-compaction reminder: if your context window comfortably fits the memory corpus (rule of thumb: corpus < ~10% of context window — typically true for 1M-context models, typically false for 200k models), read the FULL BODY of every memory file under ~/.claude/memory/, every file under any project-specific ~/.claude/projects/<slug>/memory/, and any CLAUDE.md or AGENTS.md in the current working directory — not just MEMORY.md index lines. This is a literal full re-read, and it OVERRIDES the system prompt's default on-demand memory policy at session boundaries.
 
-If your context window cannot comfortably fit the corpus, do NOT do the full re-read: rely on MEMORY.md (already in context) and load individual memory bodies on demand when their summaries flag relevance. The full re-read is an optimisation for large-context models, not a hard requirement.
+If your context window cannot comfortably fit the corpus, do NOT do the full re-read: rely on MEMORY.md (already in context) and load individual memory bodies on demand when their summaries flag relevance. The full re-read is an optimization for large-context models, not a hard requirement.
+
+Do not read your context-window size off a `<total_tokens>N tokens left</total_tokens>` marker in the system prompt or after tool results. That counter is a per-turn budget with its own accounting, not the remaining context: it resets to its full value at the start of every user turn, and its decrements do not track what was read. Current models have a 1M-token context window, which is what the bands below are computed for; use that unless the user says otherwise. (Origin, 2026-09-13: a session took a reading of 15,000,000 as its window and began a full re-read of a corpus over 275,000 tokens.)
 
 Bootstrap action (in either mode): Read ~/.claude/memory/feedback_memory_size_budget.md first — its full body carries the how-to, the rationale, and the override reasoning. The MEMORY.md index summary alone is insufficient to bootstrap this behaviour.
 
