@@ -1,6 +1,6 @@
 ---
 name: On session start and post-compaction, read every memory file in full IF the context window can comfortably absorb it. Otherwise read the subset that seems most relevant based on the descriptions in MEMORY.md, and use on-demand loads for other memories.
-description: "The session-start / post-compaction hook instructs a full re-read of every memory under ~/.claude/memory/ and any project memory dir. Read each file's body into context, not just MEMORY.md's index lines. If your model's context window comfortably fits the corpus (rule of thumb: corpus < ~10% of window; typically true on 1M-context models, typically false on 200k), then read all of them, otherwise what seems to be the most relevant subset for this session. The full re-read overrides the on-demand default at session boundaries; compaction reliably drops standing preferences, and index summaries are recipe-bearing but not lossless. The hook also reports memory-corpus size against 1M-context thresholds (green <50k / yellow 50k–100k / red >100k). Pruning memory files is a separate concern, not a reason to skip the re-read on a model that can afford it."
+description: "The session-start / post-compaction hook instructs a full re-read of every memory under ~/.claude/memory/ and any project memory dir. Read each file's body into context, not just MEMORY.md's index lines. If your model's context window comfortably fits the corpus (rule of thumb: corpus < ~10% of window; typically true on 1M-context models, typically false on 200k), then read all of them, otherwise what seems to be the most relevant subset for this session. The full re-read overrides the on-demand default at session boundaries; compaction reliably drops standing preferences, and index summaries are recipe-bearing but not lossless. The hook also reports memory-corpus size against 1M-context thresholds (green <50k / yellow 50k–100k / red >100k). Pruning memory files is a separate concern, not a reason to skip the re-read on a model that can afford it. Current models have a 1M-token window; use that unless the user says otherwise, and NEVER infer the window from the harness's `<total_tokens>N tokens left</total_tokens>` marker: it is a per-turn budget counter (resets to its full value every user turn; decrements unrelated to what was read), not the remaining context."
 type: feedback
 ---
 
@@ -56,6 +56,12 @@ and (optionally) a project-context line summing `CLAUDE.md` + `AGENTS.md` in the
 4. Offer to consolidate related memories rather than deleting (e.g. multiple git-hygiene memories → one composite).
 
 **If you're on a smaller-context model**: skip the full re-read entirely, rely on MEMORY.md + on-demand loads, and don't act on the pruning warning unless asked — the thresholds aren't calibrated for that situation.
+
+## Knowing the window size: the `<total_tokens>` marker is not it
+
+Current models have a 1M-token context window, which is what the hook's bands are computed for. Use that unless the user says otherwise.
+
+The harness appends a `<total_tokens>N tokens left</total_tokens>` marker to the system prompt's environment block and to every tool result. It is not the remaining context window. Observed 2026-09-13: it reset to its full value (15,000,000 that day) at the start of every user turn, and its decrements within a turn did not track what was read (a 4 KB file read cost 154k; eight reads totalling about 80k tokens cost 2k). So it behaves like a per-turn budget with its own accounting. A session that took it for the window concluded it had 15M tokens of context and started a full re-read of a corpus over 275,000 tokens, on a 1M-window model. The hook text carries the same warning, so a session sees it before choosing a strategy.
 
 ## Why the hook rather than a self-reminder memory
 
