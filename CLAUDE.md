@@ -51,6 +51,7 @@ shannon/
 ├── CLAUDE.md                       this file (contributor guidance)
 ├── install.sh                      idempotent, non-destructive installer
 ├── bin/
+│   ├── long-sentences              flags sentences that might be too long
 │   └── rewrap-check                flags (or fixes) prose that an edit left badly wrapped
 ├── claude-md/
 │   └── CLAUDE.example.md           template installed to ~/.claude/CLAUDE.md

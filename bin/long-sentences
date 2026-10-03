@@ -1,0 +1,117 @@
+#!/usr/bin/env python3
+"""Flag long sentences in prose read from standard input.
+
+Usage:
+  long-sentences [--max-words N] [--max-run N] < message.txt
+  git diff --cached | long-sentences --diff
+
+A sentence is flagged when it has more than --max-words words (default 30), or a run of more than
+--max-run words (default 25) with no internal punctuation. Two or more semicolons also flag it.
+Each flagged sentence is printed with its word count, and the exit status is 1 if any was flagged.
+
+A flagged sentence is one that might need attention, not necessarily one to change. A code span
+counts as one word. Each bullet is its own unit. Fenced code blocks are skipped, and so is a final
+paragraph made only of trailer lines, such as `Co-authored-by: ...`. With --diff, only the line
+comments that the diff adds are read (`//`, `///`, `//!`, `#`, or `--`); the body lines of a block
+comment are not.
+
+Subject-verb distance is not measured: read each flagged sentence, and every sentence over about
+20 words, for it.
+"""
+
+import argparse
+import re
+import sys
+
+# Abbreviations after which a capital letter does not start a new sentence.
+ABBREVIATIONS = ("e.g.", "i.e.", "cf.", "vs.")
+
+# The end of a sentence: a full stop, question mark, or exclamation mark, then any closing quotes or
+# brackets, then whitespace, then something that can start a sentence.
+BOUNDARY = re.compile(r"([.!?][\"'”’)\]]*)\s+(?=[\"'“‘(]?[A-Z`#])")
+
+TRAILER = re.compile(r"^[A-Za-z][\w-]*: ")
+
+
+def prose_from_diff(text):
+    lines = []
+    for line in text.splitlines():
+        if not line.startswith("+") or line.startswith("+++"):
+            continue
+        m = re.match(r"\+\s*(//[!/]?|#|--|/--|-/)\s?(.*)", line)
+        lines.append(m.group(2) if m else "")
+    return "\n".join(lines)
+
+
+def without_fences(text):
+    kept, fenced = [], False
+    for line in text.splitlines():
+        if re.match(r"\s*(```|~~~)", line):
+            fenced = not fenced
+            kept.append("")
+        elif not fenced:
+            kept.append(line)
+    return "\n".join(kept)
+
+
+def sentences(flat):
+    start = 0
+    for m in BOUNDARY.finditer(flat):
+        end = m.end(1)
+        if flat[:end].split()[-1].lower() in ABBREVIATIONS:
+            continue
+        yield flat[start:end]
+        start = m.end()
+    yield flat[start:]
+
+
+def check(text, max_words, max_run):
+    text = without_fences(text)
+    # A code span runs from a run of backticks to the next run of the same length. It may continue
+    # across a line break, but not across a blank line.
+    text = re.sub(r"(`+)(?:(?!\n[ \t]*\n)[\s\S])+?(?<!`)\1(?!`)", "CODE", text)
+    paragraphs = [p for p in re.split(r"\n\s*\n", text) if p.strip()]
+    if paragraphs and all(TRAILER.match(l.strip()) for l in paragraphs[-1].splitlines()):
+        paragraphs.pop()
+    found = []
+    for para in paragraphs:
+        units, current = [], []
+        for line in para.splitlines():
+            if re.match(r"\s*([-*+]|\d+[.)]) ", line) and current:
+                units.append(" ".join(current))
+                current = []
+            current.append(line.strip())
+        units.append(" ".join(current))
+        for unit in units:
+            for sentence in sentences(unit):
+                words = sentence.split()
+                if not words:
+                    continue
+                runs = re.split(r"[,;:()—]", sentence)
+                longest_run = max(len(r.split()) for r in runs)
+                if len(words) > max_words or longest_run > max_run or sentence.count(";") >= 2:
+                    found.append((len(words), sentence))
+    return found
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="Flag long sentences in prose read from standard input.")
+    parser.add_argument("--diff", action="store_true",
+                        help="read a diff, and check only the line comments that it adds")
+    parser.add_argument("--max-words", type=int, default=30, metavar="N",
+                        help="flag a sentence of more than N words (default 30)")
+    parser.add_argument("--max-run", type=int, default=25, metavar="N",
+                        help="flag more than N words without internal punctuation (default 25)")
+    args = parser.parse_args()
+    text = sys.stdin.read()
+    if args.diff:
+        text = prose_from_diff(text)
+    found = check(text, args.max_words, args.max_run)
+    for n, sentence in found:
+        print(f"{n} words: {sentence}\n")
+    sys.exit(1 if found else 0)
+
+
+if __name__ == "__main__":
+    main()
