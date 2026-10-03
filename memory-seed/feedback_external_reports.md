@@ -26,6 +26,21 @@ When filing bugs, feature requests, or PRs against projects **outside** the user
 
 Even when the project itself is public, the *fact* that the user was working on it at a particular time is private context that doesn't belong in an external bug tracker, nor in a memory file destined for other developers' Claude instances.
 
+**Tracked documents in a repository count too.** A design document, README, or plan committed to a
+repository, even the user's own, is read by collaborators and outlives the machine it was written
+on; it carries no local paths (`~/...`, `/Users/<name>/...`), usernames, or machine details. Say "a
+local clone exists" or name the upstream repository and revision instead. A plan file once named the
+clone's local path; the user flagged it under this rule. Working notes under the untracked `keep/`
+are the place for paths ([[feedback_repo_scratch_dirs]]).
+
+**The harness's feedback tool is an external report too.** The `SendFeedback` tool queues a bug or
+idea report about the harness locally; nothing is sent until the user runs `/feedback` and approves
+it. But the queued draft persists on disk and can be sent later, out of the context that produced
+it, so: in a security triage or fixing context, do not draft one at all (the user: "Be careful that
+doesn't leak information if we're in a security triage/fixing context"); elsewhere, scrub it as any
+external report, and say in one line that a draft was queued, since the user was surprised to see
+one drafted without being asked.
+
 **How to apply:**
 
 - Before filing, re-read the report and replace any project-specific names / paths with generic placeholders (`/tmp/build.log`, `<project-dir>`, "the project I'm working on", or just delete the example).
