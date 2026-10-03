@@ -60,8 +60,9 @@ doesn't apply— but they need different fixes.
 - **Seed memories** — a small starter corpus of universal meta-rules:
   synthesis-check-before-memory-write, no-push-without-explicit-request,
   attribution requirements, scrub-paths-from-global-memories, recipe-bearing
-  index summaries, hook script factoring, narration discipline. These are
-  the failure modes that show up consistently across users.
+  index summaries, hook script factoring, narration discipline, repo-local
+  scratch directories. These are the failure modes that show up
+  consistently across users.
 
 - **Opt-in memories** — These try to address a wider range of common
   failure modes of Claude Code.
