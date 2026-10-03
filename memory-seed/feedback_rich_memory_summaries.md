@@ -47,6 +47,32 @@ If there's no good fit, create the new memory file — but err on the side of sy
 
 **Body-and-summary as closely-related content.** A memory body and its `MEMORY.md` index summary are *closely-related content* in the sense of Shannon's cross-reference convention (`shannon/CLAUDE.md` "Same or closely-related content across files"): the summary is a recipe-bearing condensation of the body, and an edit to either may require a paired edit to the other. Treat the body-and-summary relationship as an implicit cross-reference for all memory files; the body does not need a per-file `<!-- See also: MEMORY.md -->` comment because the rule applies uniformly across the corpus. When updating either, check whether the other needs the corresponding change.
 
+## 3b. Give a memory a trigger that the context can match
+
+A memory is only useful if it fires. Writing the recipe into the summary (§3) makes it *applicable*;
+this makes it *reachable*. The failure mode is a rule whose trigger is a judgement about the work as
+a whole — "when the proof is turning into bespoke plumbing", "when a function is getting too long",
+"if you find yourself repeating work". Nothing in the context marks the moment when such a judgement
+becomes true, so it tends to be made only in hindsight, and the memory can sit loaded through days
+of work and never fire.
+
+Prefer a trigger that a concrete feature of the context matches:
+
+- **A moment in the workflow.** "Before starting any large refactoring." "After finding a
+  generalization, before moving on." "When you realize that a task is more difficult than it
+  appeared." "After a second failed attempt at the same step." These are steps that the work passes
+  through anyway, so the trigger is matched when it should be.
+- **A syntactic or mechanical signature.** "An induction with one case per constructor." "The
+  same lemma shape at two payload types." "A `git add` naming a directory." Weaker than a
+  workflow moment, but still checkable while working.
+- **A hook, where the rule reduces to one.** This is the limit case: the harness injects the rule
+  at an event, so the trigger does not depend on the agent's judgement at all. The session-start
+  re-read, the memory-synthesis check, and the portable-command check are rules that became hooks
+  for exactly this reason.
+
+When revising a memory that did not fire when it should have, fix the trigger rather than restating
+the rule more emphatically: the content was rarely the problem.
+
 ## 4. When you notice something memory-worthy, *write it* — don't just say "worth noting"
 
 Conversation content evaporates: each turn's prose dissolves at session end (or earlier, at compaction). Only what's written to a memory file persists across sessions. So when the agent notices in conversation that something is memory-worthy — usually expressed as *"worth noting"*, *"this could be a memory"*, *"this is another instance of X pattern"*, *"this is a refinement to memory Y"* — the next action should be to **act**, not to narrate the intent.
