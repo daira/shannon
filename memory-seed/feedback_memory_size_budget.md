@@ -61,7 +61,7 @@ and (optionally) a project-context line summing `CLAUDE.md` + `AGENTS.md` in the
 
 Current models have a 1M-token context window, which is what the hook's bands are computed for. Use that unless the user says otherwise.
 
-The harness appends a `<total_tokens>N tokens left</total_tokens>` marker to the system prompt's environment block and to every tool result. It is not the remaining context window. Observed 2026-09-13: it reset to its full value (15,000,000 that day) at the start of every user turn, and its decrements within a turn did not track what was read (a 4 KB file read cost 154k; eight reads totalling about 80k tokens cost 2k). So it behaves like a per-turn budget with its own accounting. A session that took it for the window concluded it had 15M tokens of context and started a full re-read of a corpus over 275,000 tokens, on a 1M-window model. The hook text carries the same warning, so a session sees it before choosing a strategy.
+The harness appends a `<total_tokens>N tokens left</total_tokens>` marker to the system prompt's environment block and to every tool result. It is not the remaining context window. Observed: it reset to its full value (15,000,000 at the time) at the start of every user turn, and its decrements within a turn did not track what was read (a 4 KB file read cost 154k; eight reads totalling about 80k tokens cost 2k). So it behaves like a per-turn budget with its own accounting. A session that took it for the window concluded it had 15M tokens of context and started a full re-read of a corpus over 275,000 tokens, on a 1M-window model. The hook text carries the same warning, so a session sees it before choosing a strategy.
 
 ## Why the hook rather than a self-reminder memory
 

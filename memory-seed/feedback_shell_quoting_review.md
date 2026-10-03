@@ -137,9 +137,9 @@ filter only to shorten output but still care whether the command succeeded, reac
 
 ## `;`-chaining swallows errors; the standing form is `(set -o pipefail && … && …)`
 
-A user directive (2026-08-07, stated twice in consecutive turns): in agent-issued Bash calls,
-`;` between steps lets an earlier step fail invisibly — the tool result shows only the last
-command's status, and a failed probe's empty output reads as a clean result. Two rules:
+A user directive (stated twice in consecutive turns): in agent-issued Bash calls, `;` between steps
+lets an earlier step fail invisibly — the tool result shows only the last command's status, and a
+failed probe's empty output reads as a clean result. Two rules:
 
 1. **Chain with `&&`, not `;`, in every multi-step Bash call** — including "display-only"
    probe batches (`ls X; other-tool view Y`). If steps are genuinely independent and both must
@@ -157,15 +157,15 @@ whole stream). Treat 141 as benign only when the pipeline visibly ends in an int
 truncator; any other nonzero is real.
 
 **A check that gates a mutation must be wired to it.** When a command sequence contains a
-verification step whose purpose is to decide whether a later MUTATING step may run (a
-freshness diff before a PATCH, a dry-run before an apply), `;` between them makes the check
-decorative: the mutation runs regardless of what the check found, and piping the check into
-`head` additionally destroys its exit code. Real instance (2026-08-15): a fetch-before-patch
-freshness diff batched as `… | diff base - | head -8; gh pr edit …` — the user had edited the
-PR body concurrently and had to reject the command by hand; nothing in the command could have
-stopped the clobber. Either `&&`-wire the gate with rc-meaningful output (no truncating pipe
-on the check), or issue the mutation as a separate command after reading the check's output.
-See also `feedback_fetch_before_patch_user_artifacts.md` §5 for the PATCH-specific form.
+verification step whose purpose is to decide whether a later MUTATING step may run (a freshness diff
+before a PATCH, a dry-run before an apply), `;` between them makes the check decorative: the
+mutation runs regardless of what the check found, and piping the check into `head` additionally
+destroys its exit code. Real instance: a fetch-before-patch freshness diff batched as
+`… | diff base - | head -8; gh pr edit …` — the user had edited the PR body concurrently and had to
+reject the command by hand; nothing in the command could have stopped the clobber. Either `&&`-wire
+the gate with rc-meaningful output (no truncating pipe on the check), or issue the mutation as a
+separate command after reading the check's output. See also
+`feedback_fetch_before_patch_user_artifacts.md` §5 for the PATCH-specific form.
 
 **Heredoc trap — the line after the terminator is sequential.** In
 `a && b && python3 - <<'EOF'` followed by the heredoc body, `EOF`, and then further commands
