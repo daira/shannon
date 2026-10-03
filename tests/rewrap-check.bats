@@ -65,3 +65,27 @@ LONG='A paragraph that an edit has made much too long for a width of forty colum
     [ "$status" -eq 0 ]
     [[ "$output" == *"a.rs:1: note: line exceeds 40 cols"* ]]
 }
+
+@test "--fix leaves alone a list that directly follows a paragraph's line" {
+    edit a.md $'x\n' "$LONG"$'\n- first item\n- second item\n'
+    run "$SCRIPT" --width 40 --fix a.md
+    [ "$status" -eq 0 ]
+    [ "$(tail -n 2 a.md)" = $'- first item\n- second item' ]
+}
+
+@test "--fix leaves alone a list in line comments" {
+    edit a.rs $'// x\n' "/// $LONG"$'\n/// - first item\n/// - second item\nfn f() {}\n'
+    run "$SCRIPT" --width 40 --fix a.rs
+    [ "$status" -eq 0 ]
+    [ "$(tail -n 3 a.rs)" = $'/// - first item\n/// - second item\nfn f() {}' ]
+}
+
+@test "--fix does not join a setext heading to the paragraph after it" {
+    edit a.md $'x\n' $'Title\n-----\n'"$LONG"$'\n'
+    run "$SCRIPT" --width 40 --fix a.md
+    [ "$status" -eq 0 ]
+    [ "$(head -n 2 a.md)" = $'Title\n-----' ]
+    while IFS= read -r line; do
+        [ "${#line}" -le 40 ]
+    done < a.md
+}

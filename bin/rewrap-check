@@ -167,6 +167,15 @@ BLOCKQUOTE = re.compile(r"^(\s{0,3})>\s?")
 INDENTCODE = re.compile(r"^\s{4,}\S")
 HTMLBLOCK = re.compile(r"^\s{0,3}<[A-Za-z/!]")
 BLANK = re.compile(r"^\s*$")
+INTERRUPTING_ITEM = re.compile(r"^\s{0,3}([-*+]|1[.)])\s+\S")
+
+
+def interrupts_paragraph(line: str) -> bool:
+    """Whether `line` starts a new block when it directly follows a paragraph's line, as CommonMark
+    has it: a bullet item or an ordered item numbered 1, a heading, a block quote, a thematic break,
+    or an HTML block."""
+    return bool(INTERRUPTING_ITEM.match(line) or ATX.match(line) or BLOCKQUOTE.match(line)
+                or THEMATIC.match(line) or HTMLBLOCK.match(line))
 
 
 def collect_markdown(lines: list[str]) -> list[Para]:
@@ -191,8 +200,17 @@ def collect_markdown(lines: list[str]) -> list[Para]:
                 j += 1
             i = j + 1
             continue
-        j = i
+        # A plain paragraph ends at a setext underline, which makes it a heading, or before a
+        # line that interrupts it, which starts the next block. A list or a block quote runs to
+        # the next blank line.
+        plain = not (LISTITEM.match(lines[i]) or BLOCKQUOTE.match(lines[i]))
+        j = i + 1
         while j < n and not BLANK.match(lines[j]) and not FENCE.match(lines[j]):
+            if plain and SETEXT.match(lines[j]):
+                j += 1
+                break
+            if plain and interrupts_paragraph(lines[j]):
+                break
             j += 1
         block = lines[i:j]
         start, end = i + 1, j
@@ -289,18 +307,26 @@ def group_comment_marks(marks: dict[int, tuple[str, str, str]], lines: list[str]
         run = []
 
     prev = None
+    nonprose = False  # the current run has reached a list, table, heading, or code line
     for k in sorted(marks):
         indent, marker, content = marks[k]
         if content.strip() == "" or MARKER_LINE.match(content):  # paragraph boundary
             flush()
             prev = None
+            nonprose = False
             continue
-        if (prev is not None and k == prev + 1
+        if not (prev is not None and k == prev + 1
                 and marks[prev][0] == indent and marks[prev][1] == marker):
-            run.append(k)
-        else:
             flush()
-            run = [k]
+            nonprose = False
+        # As in a doc block, a list, table, heading, or code line is never reflowed, and nor is
+        # the rest of its run: it ends the paragraph that it follows.
+        body = content[1:] if content.startswith(" ") else content
+        if nonprose or DOC_NONPROSE.match(body):
+            flush()
+            nonprose = True
+        else:
+            run.append(k)
         prev = k
     flush()
     return paras
