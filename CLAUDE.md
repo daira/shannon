@@ -1,9 +1,10 @@
 # CLAUDE.md — guidance for Claude when working on Shannon itself
 
-Shannon is a meta-toolkit: hooks and seed rules that address
-memory-augmented agent failure modes. The repo is intentionally small,
-intentionally opinionated only on infrastructure, and intentionally NOT
-tied to any particular project, domain, or user.
+Shannon is a meta-toolkit: hooks and seed rules that address memory-augmented
+agent failure modes. The repo is intentionally small, intentionally
+opinionated only on infrastructure and on the clarity of what the agent
+writes, and intentionally NOT tied to any particular project, domain, or
+user.
 
 ## Two principles that shape every change
 
@@ -15,7 +16,10 @@ tied to any particular project, domain, or user.
    *universal* failure modes (recall miss, trigger miss, synthesis miss,
    narration discipline, attribution, no-push-by-default, etc.). They do not
    prescribe stylistic preferences (commit-message format, code style, naming
-   conventions) — those are per-user and out of scope.
+   conventions) — those are per-user and out of scope. Guidance that makes
+   the agent's writing clearer to its reader is different: unclear writing is
+   a failure mode that shows up across users, so a seed may ask for short
+   sentences, defined terms, and lists marked as exhaustive or exemplary.
 
 ## Sanitization is mandatory for shipped content
 
@@ -143,7 +147,8 @@ shannon/
 - **Project-specific memories.** Those belong in
   `~/.claude/projects/<slug>/memory/` for the end user, not here.
 - **Stylistic preferences.** Commit-message conventions, code style,
-  naming, prose preferences — these are per-user.
+  naming, and prose preferences that do not bear on clarity, such as a
+  dialect's spelling — these are per-user.
 - **Runtime tooling.** Linters, dedup finders, and other utilities that
   operate on the user's memory corpus at runtime are useful but a separate
   project; Shannon's scope is the install-time toolkit and the seed corpus.

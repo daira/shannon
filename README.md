@@ -15,11 +15,11 @@ the ideas are likely to port to similar agents. This project may well
 become more general in future. High-quality contributions are welcome.
 
 By default, this project focuses on meta-issues of memory retention and
-usage. It is a little opinionated about that, but not about anything
-else. You can opt into additional memory categories that make it more
-opinionated — for example about code development practices; tips for
-how Claude should use the shell, `git`, or other tools to avoid certain
-pitfalls; etc.
+usage. It is a little opinionated about that, and about writing clearly,
+but not about anything else. You can opt into additional memory
+categories that make it more opinionated — for example about code
+development practices; tips for how Claude should use the shell, `git`,
+or other tools to avoid certain pitfalls; etc.
 
 ## How current LLMs do and don't remember things
 
