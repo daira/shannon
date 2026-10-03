@@ -114,3 +114,25 @@ LONG='A paragraph that an edit has made much too long for a width of forty colum
     [[ "$output" == *"a.py:2: note: line exceeds 40 cols"* ]]
     [ "$(tail -n 1 a.py)" = 'X = """A string that an edit has made much too long for forty columns."""' ]
 }
+
+@test "a file without an extension is read as Python when its shebang names python" {
+    local n=0 shebang
+    for shebang in '#!/usr/bin/env python3' '#!/usr/bin/env python' '#!/usr/bin/python3'; do
+        n=$((n + 1))
+        edit "tool$n" "$shebang"$'\n"""Short."""\n' \
+            "$shebang"$'\n"""A docstring that an edit has made much too long for forty columns."""\n'
+    done
+    run "$SCRIPT" --width 40 tool1 tool2 tool3
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"tool1:2-2:"* ]]
+    [[ "$output" == *"tool2:2-2:"* ]]
+    [[ "$output" == *"tool3:2-2:"* ]]
+}
+
+@test "a file without an extension and without a python shebang is not read" {
+    edit tool $'#!/bin/sh\n# short\n' \
+        $'#!/bin/sh\n# A comment that an edit has made much too long for forty columns.\n'
+    run "$SCRIPT" --width 40 tool
+    [ "$status" -eq 0 ]
+    [ -z "$output" ]
+}

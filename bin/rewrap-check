@@ -27,7 +27,9 @@ File types (by extension)
   .rst                         reStructuredText prose paragraphs
   .py                          full-line `#` comments  (found via stdlib tokenize), and
                                the paragraphs of docstrings (found via stdlib ast; the
-                               quotes stay on the first and last words)
+                               quotes stay on the first and last words); a file
+                               without an extension counts as .py if its first line
+                               is a python shebang
   .rs                          full-line //, ///, //! comments
   .lean                        full-line -- comments, and the paragraphs of /-- … -/
                                docstrings and /-! … -/ module docs (the opener stays
@@ -127,6 +129,20 @@ def changed_line_set(sel: list[str], path: str) -> set[int]:
 def changed_files(sel: list[str]) -> list[str]:
     out = git(["diff", "--name-only", "--diff-filter=d", *sel])
     return [p for p in out.splitlines() if p]
+
+
+PY_SHEBANG = re.compile(r"^#!.*\bpython[\d.]*(\s|$)")
+
+
+def source_ext(mode: str, root: str, path: str) -> str:
+    """The file's extension, lower-cased; or ".py" for a file without one whose first line is a
+    Python shebang, such as an executable script."""
+    ext = os.path.splitext(path)[1].lower()
+    if ext == "":
+        text = file_text(mode, root, path)
+        if text is not None and PY_SHEBANG.match(text.split("\n", 1)[0]):
+            return ".py"
+    return ext
 
 
 def file_text(mode: str, root: str, path: str) -> str | None:
@@ -737,7 +753,8 @@ def main() -> int:
     if args.paths:
         wanted = {os.path.relpath(os.path.abspath(p), root) for p in args.paths}
         files = [f for f in files if f in wanted]
-    files = [f for f in files if os.path.splitext(f)[1].lower() in known]
+    exts = {f: source_ext(mode, root, f) for f in files}
+    files = [f for f in files if exts[f] in known]
 
     flagged = 0
     for path in sorted(files):
@@ -748,7 +765,7 @@ def main() -> int:
         changed = changed_line_set(sel, path)
         if not changed:
             continue
-        ext = os.path.splitext(path)[1].lower()
+        ext = exts[path]
         ext = ext if ext in known - extra else ".txt"  # --ext files treated as prose
 
         edits: list[tuple[int, int, list[str]]] = []
