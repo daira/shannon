@@ -10,8 +10,9 @@ issues before committing.
 **Why:** Unquoted variables cause word-splitting and globbing bugs that are easy to miss.
 These are especially dangerous in scripts that handle file paths or branch names.
 
-**How to apply:** After writing a shell script, scan every use of `$VAR` and `$(...)` for
-whether it needs double-quoting. Key rules:
+**How to apply:** After writing a shell script, run `shellcheck <script>` where it is installed and
+fix what it reports, then scan every use of `$VAR` and `$(...)` for whether it needs double-quoting,
+since shellcheck does not see every context. Key rules:
 - RHS of `VAR=` assignments don't need quoting (no word-splitting in assignments)
 - Inside double-quoted strings, `$VAR` expands without word-splitting (safe)
 - Everywhere else (arguments, `for` loops, `test`/`[` expressions), `"$VAR"` is needed
