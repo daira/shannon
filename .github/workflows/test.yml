@@ -22,10 +22,13 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y bats jq
 
-      - name: Run the bats suite
+      # Runs every suite, so that each one's results are printed, and then fails if any failed.
+      - name: Run the bats suites
         run: |
+          status=0
           for f in tests/*.bats; do
             echo "*** $f ***"
-            bats "$f"
+            bats "$f" || status=1
             echo ""
           done
+          exit "$status"
