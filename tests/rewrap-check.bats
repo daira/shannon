@@ -89,3 +89,28 @@ LONG='A paragraph that an edit has made much too long for a width of forty colum
         [ "${#line}" -le 40 ]
     done < a.md
 }
+
+@test "--fix rewraps an edited Python docstring, keeping its quotes on the first and last words" {
+    edit a.py $'def f():\n    """Short."""\n' \
+        $'def f():\n    """A docstring that an edit has made much too long for forty columns."""\n'
+    run "$SCRIPT" --width 40 --fix a.py
+    [ "$status" -eq 0 ]
+    [ "$(cat a.py)" = $'def f():\n    """A docstring that an edit has made\n    much too long for forty columns."""' ]
+}
+
+@test "--fix leaves alone a docstring's quote-only lines and its doctests" {
+    edit a.py $'def f():\n    """\n    Short.\n    """\n' \
+        $'def f():\n    """\n    A docstring that an edit has made much too long for forty columns.\n\n    >>> f()\n    """\n'
+    run "$SCRIPT" --width 40 --fix a.py
+    [ "$status" -eq 0 ]
+    [ "$(cat a.py)" = $'def f():\n    """\n    A docstring that an edit has made\n    much too long for forty columns.\n\n    >>> f()\n    """' ]
+}
+
+@test "a triple-quoted string that is not a docstring is not reflowed" {
+    edit a.py $'import os\nX = """short"""\n' \
+        $'import os\nX = """A string that an edit has made much too long for forty columns."""\n'
+    run "$SCRIPT" --width 40 --fix a.py
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"a.py:2: note: line exceeds 40 cols"* ]]
+    [ "$(tail -n 1 a.py)" = 'X = """A string that an edit has made much too long for forty columns."""' ]
+}

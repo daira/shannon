@@ -25,7 +25,9 @@ allowed together with --staged.)
 File types (by extension)
   .md .markdown .txt .text …   Markdown/plain prose paragraphs + blockquotes
   .rst                         reStructuredText prose paragraphs
-  .py                          full-line `#` comments  (found via stdlib tokenize)
+  .py                          full-line `#` comments  (found via stdlib tokenize), and
+                               the paragraphs of docstrings (found via stdlib ast; the
+                               quotes stay on the first and last words)
   .rs                          full-line //, ///, //! comments
   .lean                        full-line -- comments, and the paragraphs of /-- … -/
                                docstrings and /-! … -/ module docs (the opener stays
@@ -33,7 +35,7 @@ File types (by extension)
   Source comments are reflowed with their marker + indent preserved. Rust/Lean
   scanning tracks string literals and nested block comments, so a // or -- inside
   a string or /* … */ // /- … -/ is never mistaken for a reflowable comment.
-  Other block comments (/* */, /- -/, Python docstrings) are NOT reflowed yet.
+  Other block comments (/* */, /- -/) and other Python strings are NOT reflowed yet.
 
 Over-width lines
   Every changed line outside a reflowable paragraph (code, for instance) that is
@@ -58,6 +60,7 @@ over-width line that it cannot reflow, which is not an error.
 from __future__ import annotations
 
 import argparse
+import ast
 import difflib
 import io
 import os
@@ -332,6 +335,59 @@ def group_comment_marks(marks: dict[int, tuple[str, str, str]], lines: list[str]
     return paras
 
 
+DOC_QUOTES = ('"""', "'''")
+DOCTEST = re.compile(r"^(>>>|\.\.\.)(\s|$)")
+
+
+def collect_python_docstrings(text: str, lines: list[str]) -> list[Para]:
+    """The prose paragraphs of the docstrings of a module and of its classes and functions. The
+    opening and closing quotes stay attached to the first and last words, and a line that holds
+    only quotes is left where it is. Paragraphs that look like lists, code, tables, or doctests,
+    or that have a line indented less than the opening quotes, are left alone."""
+    try:
+        tree = ast.parse(text)
+    except (SyntaxError, ValueError):
+        return []
+    paras: list[Para] = []
+    for node in ast.walk(tree):
+        if not isinstance(node, (ast.Module, ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)):
+            continue
+        first = node.body[0] if node.body else None
+        if not (isinstance(first, ast.Expr) and isinstance(first.value, ast.Constant)
+                and isinstance(first.value.value, str)):
+            continue
+        s, e = first.lineno - 1, first.end_lineno - 1
+        indent = lines[s][:first.col_offset]
+        if indent.strip() or not lines[e].rstrip().endswith(DOC_QUOTES):
+            continue  # it shares a line with code
+        content: list[str | None] = []
+        for k in range(s, e + 1):
+            line = lines[k].rstrip()
+            if k == s or line.startswith(indent):
+                c = line[len(indent):]
+            elif not line.strip():
+                c = ""
+            else:
+                c = None  # indented less than the opening quotes
+            if c is not None and c.strip().lstrip("rRbBuUfF") in DOC_QUOTES:
+                c = ""  # a line that holds only quotes is a boundary
+            content.append(c)
+        k = 0
+        while k < len(content):
+            if content[k] == "":
+                k += 1
+                continue
+            j = k
+            while j < len(content) and content[j] != "":
+                j += 1
+            block = content[k:j]
+            if all(c is not None and not DOC_NONPROSE.match(c) and not DOCTEST.match(c)
+                   for c in block):
+                paras.append(Para(s + k + 1, s + j, lines[s + k:s + j], block, indent, ""))
+            k = j
+    return paras
+
+
 def collect_python(text: str, lines: list[str]) -> list[Para]:
     marks: dict[int, tuple[str, str, str]] = {}
     try:
@@ -345,7 +401,8 @@ def collect_python(text: str, lines: list[str]) -> list[Para]:
                 marks[li] = (line[:fns], "#", line[fns + 1:])
     except (tokenize.TokenError, IndentationError, SyntaxError, ValueError):
         pass
-    return group_comment_marks(marks, lines)
+    return sorted(group_comment_marks(marks, lines) + collect_python_docstrings(text, lines),
+                  key=lambda p: p.start)
 
 
 LANG_CFG = {
