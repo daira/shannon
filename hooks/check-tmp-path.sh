@@ -41,7 +41,7 @@ case "$cmd" in
     *"/tmp/claude-"*)
         # Claude Code's own scratch directory — exempt.
         ;;
-    *"/tmp/"*|*" /tmp "*|*"=/tmp/"*|*"=/tmp "*)
+    *"/tmp/"*|*" /tmp "*|*"=/tmp "*)
         jq -n '{
             hookSpecificOutput: {
                 hookEventName: "PreToolUse",

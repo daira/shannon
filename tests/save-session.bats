@@ -3,6 +3,8 @@
 #
 # See ../docs/testing.md for the per-case table this suite implements.
 
+bats_require_minimum_version 1.5.0
+
 setup() {
     SCRIPT="$BATS_TEST_DIRNAME/../hooks/save-session.sh"
     HELPER="$BATS_TEST_DIRNAME/../hooks/jsonl-to-md.py"
@@ -48,21 +50,24 @@ setup() {
 }
 
 @test "missing argument: exit 2, usage on stderr" {
-    run bash "$SCRIPT"
+    run --separate-stderr bash "$SCRIPT"
     [ "$status" -eq 2 ]
-    [[ "$stderr" == *"usage:"* ]] || [[ "$output" == *"usage:"* ]]
+    # shellcheck disable=SC2154  # run --separate-stderr sets $stderr
+    [[ "$stderr" == *"usage:"* ]]
 }
 
 @test "empty argument: exit 2, usage on stderr" {
-    run bash "$SCRIPT" ""
+    run --separate-stderr bash "$SCRIPT" ""
     [ "$status" -eq 2 ]
-    [[ "$stderr" == *"usage:"* ]] || [[ "$output" == *"usage:"* ]]
+    # shellcheck disable=SC2154  # run --separate-stderr sets $stderr
+    [[ "$stderr" == *"usage:"* ]]
 }
 
 @test "nonexistent transcript: exit 1, not-found on stderr" {
-    run bash "$SCRIPT" "$BATS_TEST_TMPDIR/does-not-exist.jsonl"
+    run --separate-stderr bash "$SCRIPT" "$BATS_TEST_TMPDIR/does-not-exist.jsonl"
     [ "$status" -eq 1 ]
-    [[ "$stderr" == *"not found"* ]] || [[ "$output" == *"not found"* ]]
+    # shellcheck disable=SC2154  # run --separate-stderr sets $stderr
+    [[ "$stderr" == *"not found"* ]]
 }
 
 @test "partially malformed transcript: valid lines rendered, garbage skipped" {
@@ -77,7 +82,8 @@ setup() {
     # Both well-formed messages must appear; the garbage lines must not.
     grep -qF "first valid" "${mds[0]}"
     grep -qF "second valid" "${mds[0]}"
-    ! grep -qF "this line is not json at all" "${mds[0]}"
+    run grep -qF "this line is not json at all" "${mds[0]}"
+    [ "$status" -eq 1 ]
 }
 
 @test "all-malformed transcript: produces just the header" {
@@ -91,7 +97,8 @@ setup() {
 
     # Header is present; no further messages.
     grep -qF "Session transcript" "${mds[0]}"
-    ! grep -qF "not json" "${mds[0]}"
+    run grep -qF "not json" "${mds[0]}"
+    [ "$status" -eq 1 ]
 }
 
 @test "invalid-UTF-8 bytes outside any JSON string: line is skipped, no message rendered" {
@@ -112,7 +119,8 @@ setup() {
     # happens uniformly across the line, and the post-replacement parse
     # failure is handled by the normal malformed-line path.
     grep -qF "Session transcript" "${mds[0]}"
-    ! grep -qF "hello" "${mds[0]}"
+    run grep -qF "hello" "${mds[0]}"
+    [ "$status" -eq 1 ]
 }
 
 @test "invalid-UTF-8 transcript: bytes are replaced with U+FFFD, message still renders" {

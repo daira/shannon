@@ -4,9 +4,9 @@
 
 setup() {
     SCRIPT="$BATS_TEST_DIRNAME/../bin/rewrap-check"
-    cd "$BATS_TEST_TMPDIR"
+    cd "$BATS_TEST_TMPDIR" || return 1
     git init -q repo
-    cd repo
+    cd repo || return 1
     git config user.name test
     git config user.email test@example.com
 }
