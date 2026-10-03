@@ -20,6 +20,23 @@ user.
    the agent's writing clearer to its reader is different: unclear writing is
    a failure mode that shows up across users, so a seed may ask for short
    sentences, defined terms, and lists marked as exhaustive or exemplary.
+   So are practices that prevent harm, even when they concern one tool:
+   losing the user's work, a failure that passes silently, a licence
+   problem, or broken rendering.
+
+## Seeds must be safe for every user
+
+A seed is followed by agents of users whose setups and trust differ from its
+author's. So a seed does not recommend a practice that could cause a security
+problem for another user. A step that uses the user's credentials, publishes
+something, or reaches the network is offered, and taken only with the user's
+explicit consent: the agent may have access to credentials that the user did
+not expect it to have. An approval that one user has given belongs in that
+user's own memories, not in a seed.
+
+A seed refers only to other seeds. A reference to any other memory points
+adopters at something they do not have, which means that the corpus is
+incomplete; `tests/memory-references.bats` checks this.
 
 ## Sanitization is mandatory for shipped content
 

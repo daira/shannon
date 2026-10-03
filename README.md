@@ -15,11 +15,10 @@ the ideas are likely to port to similar agents. This project may well
 become more general in future. High-quality contributions are welcome.
 
 By default, this project focuses on meta-issues of memory retention and
-usage. It is a little opinionated about that, and about writing clearly,
-but not about anything else. You can opt into additional memory
-categories that make it more opinionated — for example about code
-development practices; tips for how Claude should use the shell, `git`,
-or other tools to avoid certain pitfalls; etc.
+usage. It is a little opinionated about that, about writing clearly, and
+about avoiding tool pitfalls that lose work or hide failures, but not
+about anything else. You can opt into additional memory categories that
+make it more opinionated, for example about code development practices.
 
 ## How current LLMs do and don't remember things
 
@@ -193,8 +192,7 @@ A few principles guide what's in this project:
    only universal failure modes. Anything that doesn't meet that criterion
    is opt-in.
 3. **Batteries included.** If you do want to opt into more opinionated
-   memories about code development practices, more reliable ways to use the
-   shell and `git`, etc., those are included.
+   memories about code development practices, those are included.
 4. **Friction reduction on the path from noticing to memory-update.** When
    a generalizable issue surfaces mid-session, the default response should
    be to update or synthesize a memory rather than narrate the observation
