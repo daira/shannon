@@ -1,6 +1,7 @@
 ---
 name: Attribute assisted commits, issues, PRs, and comments to Claude
 description: Every commit, issue, PR, or posted comment that Claude helped to make or materially change carries attribution. A commit gets a `Co-authored-by: Claude <model> <noreply@anthropic.com>` trailer, kept through rebases and amends. An issue, PR, or comment gets a line at the bottom of its body, and an issue gets the repository's AI-disclosure label if it has one. Name the model that is actually running: the system prompt's model line can be stale when the model changed during the session, and a user's statement of the current model overrides it.
+core: true
 type: feedback
 ---
 

@@ -1,6 +1,7 @@
 ---
 name: Search only relevant project directories; outside them, read only known paths, and never scan system directories or /tmp
 description: Search only within project directories known to be relevant to the current task. Never `find /`, `grep -r /`, or a wide glob over `/tmp`, `/home`, `/etc`, `/usr`, `/var`, or another user's home, even with `--maxdepth`. The walk is costly, and its output exposes system state unrelated to the task. `/tmp` is shared with other processes and sessions, so its matches are usually false positives. Read a path that a tool reported by that exact path rather than searching for it. Reading a known path outside the project is fine for memory files, an executable found with `which` or `command -v`, and a conventional config file that the task needs. One that can hold secrets or host details needs the user's consent. Only an explicit system-administration request justifies a wider search. Where to write files instead: feedback_repo_scratch_dirs.
+core: true
 type: feedback
 ---
 

@@ -1,6 +1,7 @@
 ---
 name: Use a work/ or keep/ directory inside the repo, not /tmp — pick by durability; never rm -rf either
 description: Files the agent creates that don't belong in version control go under `work/` (temporary files such as build output, PR/commit message drafts, intermediate diffs) or `keep/` (durable working drafts to retain across sessions). Both are git-ignored. Never use `/tmp`. The scratch dir is named `work/` (NOT `tmp/`) on purpose — `tmp`/"deletable scratch" framing pattern-matches to disposable at the weights level and triggers a reflexive `rm -rf` when this memory isn't fresh in context. HARD RULE: never `rm -rf` `work/` or `keep/` (they pre-exist and hold the user's own files); only `rm -f` the specific files you created, by exact path.
+core: true
 type: feedback
 ---
 

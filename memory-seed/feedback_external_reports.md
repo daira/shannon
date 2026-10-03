@@ -1,6 +1,7 @@
 ---
 name: Sanitize external reports and global memories of project-identifying details
 description: When filing bugs / feature requests / PRs outside the user's own project, or when writing global memories that may be shared with other developers' Claude instances, strip filenames, paths, usernames, project names, session-local identifiers, and current-task context that aren't relevant to the artifact's purpose. The conservative default protects users with different working-in-public norms, employer constraints, embargo obligations, and risk profiles. Recipients can always relax permissions for their own usage by editing the artifact locally; the published default should be conservative. Always preserve the Claude attribution line — that's an intentional exception, since attribution is meant to be visible.
+core: true
 type: feedback
 ---
 

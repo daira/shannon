@@ -1,6 +1,7 @@
 ---
 name: On session start and post-compaction, read every memory file in full IF the context window can comfortably absorb it. Otherwise read the subset that seems most relevant based on the descriptions in MEMORY.md, and use on-demand loads for other memories.
 description: "The session-start / post-compaction hook instructs a full re-read of every memory under ~/.claude/memory/ and any project memory dir. Read each file's body into context, not just MEMORY.md's index lines. If your model's context window comfortably fits the corpus (rule of thumb: corpus < ~10% of window; typically true on 1M-context models, typically false on 200k), then read all of them, otherwise what seems to be the most relevant subset for this session. The full re-read overrides the on-demand default at session boundaries; compaction reliably drops standing preferences, and index summaries are recipe-bearing but not lossless. The hook also reports memory-corpus size against 1M-context thresholds (green <50k / yellow 50k–100k / red >100k). Pruning memory files is a separate concern, not a reason to skip the re-read on a model that can afford it. Current models have a 1M-token window; use that unless the user says otherwise, and NEVER infer the window from the harness's `<total_tokens>N tokens left</total_tokens>` marker: it is a per-turn budget counter (resets to its full value every user turn; decrements unrelated to what was read), not the remaining context."
+core: true
 type: feedback
 ---
 

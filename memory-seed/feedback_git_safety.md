@@ -1,6 +1,7 @@
 ---
 name: Git safety — don't lose the user's work, stage files by name, and rewrite history with the right tool
 description: Before `reset --hard`, `stash -u`, `stash drop`, `rm`, or `checkout <ref> -- <file>`, check what would be lost; run `git clean -f`/`-x`/`-X` only after showing the dry run and getting the user's confirmation. Name every file in `git add`, never `.`, `-A`, a directory, or a glob, and check each file's own diff first. To edit past commits, make fixup commits and fold them in with `GIT_SEQUENCE_EDITOR=true GIT_EDITOR=true git rebase -i --autosquash <parent>`; never detach, amend, and `rebase --onto`. At a conflict stop, resolve and `--continue`, never `--amend`; never script a loop over stops. Check the branch and a clean tree first, and the commit count afterwards. Run background git work in a separate clone, and never delete a live lock file.
+core: true
 type: feedback
 ---
 

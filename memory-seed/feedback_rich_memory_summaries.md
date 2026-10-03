@@ -1,6 +1,7 @@
 ---
 name: Authoring memories — default to global; synthesize with existing ones first; write recipe-bearing summaries; act on memory-worthy observations; match existing styling when updating
 description: "Rules for authoring memories. (1) Default to writing under `~/.claude/memory/` (global) rather than `~/.claude/projects/<slug>/memory/` (project-specific) — cross-project generalizability is the common case. (2) Before creating a new memory, check whether it could be folded into an existing one. (3) Write the `MEMORY.md` index summary so it carries the specific command/recipe/failure-mode — not just the topic name. (4) When the agent notices in conversation that something is memory-worthy ('worth noting', 'this is a refinement to memory X', 'another instance of pattern Y'), the next action should be to write (or to ask), not to narrate. Conversation prose evaporates at compaction; only memory persists across sessions. (5) When updating an existing memory, match the existing styling and emphasis — don't bold or otherwise emphasize the new addition just because it's new (recency bias). (6) Word global memories generically: say 'the user' (and 'they/them') rather than the specific name in rule-describing prose; reserve the name for the user profile memory, direct quotes, and genuine incident attributions."
+core: true
 type: feedback
 ---
 
