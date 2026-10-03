@@ -12,13 +12,17 @@ Modes
   (default)   list flagged paragraphs as  path:start-end: reason
   --show      also print the suggested rewrap under each flagged paragraph
   --diff      print a unified diff of the suggested rewraps (writes nothing)
-  --fix       apply the rewraps in place (only to the edited paragraphs)
+  --fix       apply the rewraps in place (only to the edited paragraphs, or with
+              --all to every paragraph)
 
 Which edits count (the "no churn on untouched paragraphs" part)
   default         working tree vs HEAD   (all uncommitted edits)
   --staged        index vs HEAD          (only staged edits; reads staged blobs)
   --commit REF    working tree vs REF
-Only paragraphs overlapping a changed line are ever considered.
+  --all           every line of the named files, edited or not (the files are read
+                  directly, so they need not be tracked, or be in a repository)
+
+Except with --all, only paragraphs overlapping a changed line are ever considered.
 (--fix / --diff always operate on and write the working tree, so they are not
 allowed together with --staged.)
 
@@ -727,10 +731,13 @@ def main() -> int:
     src = ap.add_mutually_exclusive_group()
     src.add_argument("--staged", action="store_true", help="only staged edits (index vs HEAD)")
     src.add_argument("--commit", metavar="REF", help="edits relative to REF (working tree vs REF)")
+    src.add_argument("--all", action="store_true",
+                     help="check every line of the named files, edited or not, without git")
     out = ap.add_mutually_exclusive_group()
     out.add_argument("--show", action="store_true", help="print the suggested rewrap under each flag")
     out.add_argument("--diff", action="store_true", help="print a unified diff of the rewraps")
-    out.add_argument("--fix", action="store_true", help="apply the rewraps in place (edited paragraphs only)")
+    out.add_argument("--fix", action="store_true",
+                     help="apply the rewraps in place (edited paragraphs only, unless --all)")
     ap.add_argument("--width", type=int, default=80, help="target width in display columns (default 80)")
     ap.add_argument("--slack", type=int, default=10,
                     help="flag a short line only when it is this many columns short of the width "
@@ -742,27 +749,40 @@ def main() -> int:
 
     if args.staged and (args.fix or args.diff):
         ap.error("--fix/--diff operate on the working tree and cannot be combined with --staged")
+    if args.all and not args.paths:
+        ap.error("--all needs the paths of the files to check")
 
-    mode = "staged" if args.staged else "commit" if args.commit else "worktree"
-    sel = diff_selectors(mode, args.commit or "")
-    root = git(["rev-parse", "--show-toplevel"]).strip()
     extra = {e if e.startswith(".") else "." + e for e in args.ext}
     known = PROSE_EXTS | RST_EXTS | set(CODE_LANGS) | extra
-
-    files = changed_files(sel)
-    if args.paths:
-        wanted = {os.path.relpath(os.path.abspath(p), root) for p in args.paths}
-        files = [f for f in files if f in wanted]
+    if args.all:
+        # Every named file is read directly, without git.
+        mode, sel, root = "all", [], os.getcwd()
+        files = list(dict.fromkeys(args.paths))
+    else:
+        mode = "staged" if args.staged else "commit" if args.commit else "worktree"
+        sel = diff_selectors(mode, args.commit or "")
+        root = git(["rev-parse", "--show-toplevel"]).strip()
+        files = changed_files(sel)
+        if args.paths:
+            wanted = {os.path.relpath(os.path.abspath(p), root) for p in args.paths}
+            files = [f for f in files if f in wanted]
     exts = {f: source_ext(mode, root, f) for f in files}
+    if args.all:
+        for f in files:
+            if exts[f] not in known:
+                print(f"{f}: note: not a file type that rewrap-check reads; skipped",
+                      file=sys.stderr)
     files = [f for f in files if exts[f] in known]
 
     flagged = 0
     for path in sorted(files):
         text = file_text(mode, root, path)
         if text is None:
+            if args.all:
+                sys.exit(f"rewrap-check: cannot read {path}")
             continue
         lines = text.split("\n")
-        changed = changed_line_set(sel, path)
+        changed = set(range(1, len(lines) + 1)) if args.all else changed_line_set(sel, path)
         if not changed:
             continue
         ext = exts[path]

@@ -78,8 +78,9 @@ doesn't apply— but they need different fixes.
 - **`bin/rewrap-check`** — for the agent to run on its own edits. It
   flags the paragraphs of Markdown, reStructuredText, and source
   comments that an edit has left badly wrapped, and ignores untouched
-  text. With `--fix`, it rewraps them. `install.sh` does not install
-  it; put it on your `PATH` if you want it.
+  text. With `--fix`, it rewraps them. With `--all`, it checks whole
+  files instead, whether git tracks them or not. `install.sh` does not
+  install it; put it on your `PATH` if you want it.
 
 - **`bin/long-sentences`** — for the agent to run on prose that it has
   written, such as a commit message or the comments that a diff adds.
