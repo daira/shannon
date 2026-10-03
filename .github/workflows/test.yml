@@ -17,10 +17,12 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Install bats and jq
+      # tests/shellcheck.bats runs shellcheck over every shell script and suite. With $CI set, as
+      # here, it fails rather than skips if shellcheck is missing.
+      - name: Install bats, jq, and shellcheck
         run: |
           sudo apt-get update
-          sudo apt-get install -y bats jq
+          sudo apt-get install -y bats jq shellcheck
 
       # Runs every suite, so that each one's results are printed, and then fails if any failed.
       - name: Run the bats suites

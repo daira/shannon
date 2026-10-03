@@ -7,6 +7,8 @@ To run the test suite, first [ensure that `bats` is installed](https://bats-core
 - Nix: `nix profile install nixpkgs#bats`
 - npm: `npm install -g bats`
 
+`tests/shellcheck.bats` also needs [shellcheck](https://www.shellcheck.net/), and is skipped where it is not installed (but not in CI).
+
 To run all tests:
 ```
 bats tests
@@ -191,6 +193,7 @@ shannon/
 │   ├── rewrap-check.bats
 │   ├── session-start.bats
 │   ├── save-session.bats
+│   ├── shellcheck.bats
 │   └── fixtures/
 │       └── valid-transcript.jsonl
 └── .github/
@@ -202,14 +205,7 @@ shannon/
 
 ## CI
 
-A GitHub Actions workflow under `.github/workflows/test.yml` should:
-
-1. Check out the repo.
-2. Set up bats via `bats-core/bats-action` (or install via `npm install -g bats` if that action isn't suitable).
-3. Run `bats tests/`.
-4. Fail the PR / push if any test fails.
-
-Run on `push` and `pull_request`.
+`.github/workflows/test.yml` runs on a push to `main` and on every pull request. It installs bats, jq, and shellcheck, runs every suite under `tests/`, and then fails if any suite failed. `tests/shellcheck.bats` runs shellcheck over every shell script and bats suite, so a finding of any severity fails CI.
 
 ## Shannon scripts vs `~/.claude/` scripts
 
