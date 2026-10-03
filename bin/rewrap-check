@@ -1,0 +1,730 @@
+#!/usr/bin/env python3
+"""
+rewrap-check — flag (and optionally suggest/apply) rewraps for prose that a git
+edit has left badly wrapped, in Markdown/text, reStructuredText, and the
+comments of Rust / Python / Lean source.
+
+It reports paragraphs whose current line breaks are not what a greedy wrap at
+the target width would produce — while ignoring every paragraph the edit did
+NOT touch, so it never nags about untouched content.
+
+Modes
+  (default)   list flagged paragraphs as  path:start-end: reason
+  --show      also print the suggested rewrap under each flagged paragraph
+  --diff      print a unified diff of the suggested rewraps (writes nothing)
+  --fix       apply the rewraps in place (only to the edited paragraphs)
+
+Which edits count (the "no churn on untouched paragraphs" part)
+  default         working tree vs HEAD   (all uncommitted edits)
+  --staged        index vs HEAD          (only staged edits; reads staged blobs)
+  --commit REF    working tree vs REF
+Only paragraphs overlapping a changed line are ever considered.
+(--fix / --diff always operate on and write the working tree, so they are not
+allowed together with --staged.)
+
+File types (by extension)
+  .md .markdown .txt .text …   Markdown/plain prose paragraphs + blockquotes
+  .rst                         reStructuredText prose paragraphs
+  .py                          full-line `#` comments  (found via stdlib tokenize)
+  .rs                          full-line //, ///, //! comments
+  .lean                        full-line -- comments, and the paragraphs of /-- … -/
+                               docstrings and /-! … -/ module docs (the opener stays
+                               on the first line and the closer on the last)
+  Source comments are reflowed with their marker + indent preserved. Rust/Lean
+  scanning tracks string literals and nested block comments, so a // or -- inside
+  a string or /* … */ // /- … -/ is never mistaken for a reflowable comment.
+  Other block comments (/* */, /- -/, Python docstrings) are NOT reflowed yet.
+
+Over-width lines
+  Every changed line outside a reflowable paragraph (code, for instance) that is
+  wider than the target is reported too, as  path:line: line exceeds N cols.
+  Tables and fenced code blocks in Markdown, and grid tables in rst, are left
+  alone: their widths follow their columns.
+
+`rewrap-check` is careful about
+  * Width = display columns, Unicode-aware (East-Asian Wide/Fullwidth = 2,
+    combining / zero-width / format chars = 0).
+  * Unbreakable spans are never split: inline code (`...`), inline math ($...$,
+    \\(...\\)), KaTeX, Markdown/rst links & roles, autolinks (<...>), bare URLs.
+  * Markdown hard breaks (line ending in two+ spaces or a backslash) are kept.
+  * Non-reflowable blocks are skipped whole (headings, code, tables, lists,
+    directives, front matter, …).
+
+Exit status: 1 if anything was flagged (handy in a pre-commit hook), else 0. With
+--fix, 0 unless the run fails: it rewraps every flagged paragraph, and notes each
+over-width line that it cannot reflow, which is not an error.
+"""
+
+from __future__ import annotations
+
+import argparse
+import difflib
+import io
+import os
+import re
+import subprocess
+import sys
+import tokenize
+import unicodedata
+
+PROSE_EXTS = {".md", ".markdown", ".mkd", ".mdown", ".txt", ".text"}
+RST_EXTS = {".rst"}
+CODE_LANGS = {".py": "python", ".rs": "rust", ".lean": "lean"}
+
+
+# --------------------------------------------------------------------------- #
+# Unicode display width
+# --------------------------------------------------------------------------- #
+def char_width(ch: str) -> int:
+    if ch == "\t":
+        return 1
+    if unicodedata.category(ch) in ("Mn", "Me", "Cf") or unicodedata.combining(ch):
+        return 0
+    return 2 if unicodedata.east_asian_width(ch) in ("W", "F") else 1
+
+
+def disp_width(s: str) -> int:
+    return sum(char_width(c) for c in s)
+
+
+# --------------------------------------------------------------------------- #
+# git plumbing
+# --------------------------------------------------------------------------- #
+def git(args: list[str]) -> str:
+    r = subprocess.run(["git", *args], capture_output=True, text=True)
+    if r.returncode != 0:
+        sys.exit(f"rewrap-check: git {' '.join(args)} failed:\n{r.stderr.strip()}")
+    return r.stdout
+
+
+def diff_selectors(mode: str, ref: str) -> list[str]:
+    if mode == "staged":
+        return ["--cached"]
+    if mode == "commit":
+        return [ref]
+    return ["HEAD"]
+
+
+HUNK = re.compile(r"^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@")
+
+
+def changed_line_set(sel: list[str], path: str) -> set[int]:
+    out = git(["diff", "--unified=0", "--no-color", *sel, "--", path])
+    changed: set[int] = set()
+    for line in out.splitlines():
+        m = HUNK.match(line)
+        if not m:
+            continue
+        start = int(m.group(1))
+        count = 1 if m.group(2) is None else int(m.group(2))
+        changed.update(range(start, start + count))
+    return changed
+
+
+def changed_files(sel: list[str]) -> list[str]:
+    out = git(["diff", "--name-only", "--diff-filter=d", *sel])
+    return [p for p in out.splitlines() if p]
+
+
+def file_text(mode: str, root: str, path: str) -> str | None:
+    try:
+        if mode == "staged":
+            return git(["show", f":{path}"])
+        with open(os.path.join(root, path), encoding="utf-8") as f:
+            return f.read()
+    except (UnicodeDecodeError, OSError):
+        return None
+
+
+# --------------------------------------------------------------------------- #
+# Paragraph container
+# --------------------------------------------------------------------------- #
+class Para:
+    __slots__ = ("start", "end", "raw", "content", "indent", "prefix", "lead", "tail")
+
+    def __init__(self, start, end, raw, content, indent, prefix, lead="", tail=""):
+        self.start = start        # 1-based first source line (inclusive)
+        self.end = end            # 1-based last source line (inclusive)
+        self.raw = raw            # original source lines, verbatim
+        self.content = content    # lines with indent/prefix stripped (for reflow)
+        self.indent = indent      # leading-space string on every line
+        self.prefix = prefix      # marker/quote prefix after indent ("> ", "/// ", "# ")
+        self.lead = lead          # opener kept as the first word ("/--" of a docstring)
+        self.tail = tail          # closer kept as the last word ("-/" of a docstring)
+
+
+# --------------------------------------------------------------------------- #
+# Markdown / plain-text extractor
+# --------------------------------------------------------------------------- #
+FENCE = re.compile(r"^\s{0,3}(`{3,}|~{3,})")
+ATX = re.compile(r"^\s{0,3}#{1,6}(\s|$)")
+SETEXT = re.compile(r"^\s{0,3}(=+|-+)\s*$")
+THEMATIC = re.compile(r"^\s{0,3}([-*_])(\s*\1){2,}\s*$")
+TABLE_DELIM = re.compile(r"^\s{0,3}\|?\s*:?-{1,}:?\s*(\|\s*:?-{1,}:?\s*)*\|?\s*$")
+LINKDEF = re.compile(r"^\s{0,3}\[[^\]]+\]:\s")
+LISTITEM = re.compile(r"^\s*([-*+]|\d{1,9}[.)])\s+")
+BLOCKQUOTE = re.compile(r"^(\s{0,3})>\s?")
+INDENTCODE = re.compile(r"^\s{4,}\S")
+HTMLBLOCK = re.compile(r"^\s{0,3}<[A-Za-z/!]")
+BLANK = re.compile(r"^\s*$")
+
+
+def collect_markdown(lines: list[str]) -> list[Para]:
+    paras: list[Para] = []
+    n = len(lines)
+    i = 0
+    if n and lines[0].strip() == "---":  # YAML front matter
+        j = 1
+        while j < n and lines[j].strip() != "---":
+            j += 1
+        i = j + 1 if j < n else n
+
+    while i < n:
+        if BLANK.match(lines[i]):
+            i += 1
+            continue
+        fm = FENCE.match(lines[i])
+        if fm:
+            fence = re.escape(fm.group(1)[0])
+            j = i + 1
+            while j < n and not re.match(rf"^\s{{0,3}}{fence}{{3,}}\s*$", lines[j]):
+                j += 1
+            i = j + 1
+            continue
+        j = i
+        while j < n and not BLANK.match(lines[j]) and not FENCE.match(lines[j]):
+            j += 1
+        block = lines[i:j]
+        start, end = i + 1, j
+        i = j
+
+        first = block[0]
+        if len(block) >= 2 and SETEXT.match(block[-1]):
+            continue
+        if (ATX.match(first) or THEMATIC.match(first) or LINKDEF.match(first)
+                or INDENTCODE.match(first) or HTMLBLOCK.match(first)
+                or LISTITEM.match(first)):
+            continue
+        if any("|" in ln for ln in block) and any(TABLE_DELIM.match(ln) for ln in block):
+            continue
+
+        bq = BLOCKQUOTE.match(first)
+        if bq:
+            if any(re.match(r"^\s{0,3}>\s*>", ln) for ln in block):
+                continue
+            content = [BLOCKQUOTE.sub("", ln, count=1) for ln in block]
+            paras.append(Para(start, end, block, content, bq.group(1), "> "))
+        else:
+            indent = re.match(r"^(\s*)", first).group(1)
+            content = [ln[len(indent):] if ln.startswith(indent) else ln.lstrip()
+                       for ln in block]
+            paras.append(Para(start, end, block, content, indent, ""))
+    return paras
+
+
+# --------------------------------------------------------------------------- #
+# reStructuredText extractor (heuristic)
+# --------------------------------------------------------------------------- #
+RST_DIRECTIVE = re.compile(r"^\s*\.\.(\s|$)")
+RST_UNDERLINE = re.compile(r"""^\s*([=\-~^"'`#*+.:_])\1+\s*$""")
+RST_FIELD = re.compile(r"^\s*:[^:]+:\s")
+RST_LIST = re.compile(r"^\s*([-*+]|\(?\d+[.)]|#[.)])\s")
+RST_GRID = re.compile(r"^\s*[+|]")
+
+
+def collect_rst(lines: list[str]) -> list[Para]:
+    paras: list[Para] = []
+    n = len(lines)
+    i = 0
+    while i < n:
+        if BLANK.match(lines[i]):
+            i += 1
+            continue
+        j = i
+        while j < n and not BLANK.match(lines[j]):
+            j += 1
+        block = lines[i:j]
+        start, end = i + 1, j
+        i = j
+        first = block[0]
+        if RST_UNDERLINE.match(block[-1]):        # title (text + underline)
+            continue
+        if len(block) >= 2 and RST_UNDERLINE.match(block[0]):  # over+underline title
+            continue
+        if (RST_DIRECTIVE.match(first) or RST_FIELD.match(first)
+                or RST_LIST.match(first) or RST_GRID.match(first)):
+            continue
+        if first[:1] in (" ", "\t"):              # indented → literal/nested block
+            continue
+        indent = re.match(r"^(\s*)", first).group(1)
+        content = [ln[len(indent):] if ln.startswith(indent) else ln.lstrip()
+                   for ln in block]
+        paras.append(Para(start, end, block, content, indent, ""))
+    return paras
+
+
+# --------------------------------------------------------------------------- #
+# Source-comment extractors
+# --------------------------------------------------------------------------- #
+MARKER_LINE = re.compile(r"^\s*(BEGIN|END)\b")
+
+
+def group_comment_marks(marks: dict[int, tuple[str, str, str]], lines: list[str]) -> list[Para]:
+    """marks: line_idx -> (indent, marker, content_after_marker). Group runs of
+    consecutive same-indent/marker non-empty comment lines into paragraphs. A comment
+    that is an annotation marker (`-- BEGIN …`, `-- END …`) is a boundary and is never
+    reflowed itself."""
+    paras: list[Para] = []
+    run: list[int] = []
+
+    def flush():
+        nonlocal run
+        if run:
+            indent, marker, _ = marks[run[0]]
+            contents = [marks[k][2] for k in run]
+            lead = " " if all(c.startswith(" ") for c in contents) else ""
+            content = [c[len(lead):] for c in contents]
+            raw = [lines[k] for k in run]
+            paras.append(Para(run[0] + 1, run[-1] + 1, raw, content, indent, marker + lead))
+        run = []
+
+    prev = None
+    for k in sorted(marks):
+        indent, marker, content = marks[k]
+        if content.strip() == "" or MARKER_LINE.match(content):  # paragraph boundary
+            flush()
+            prev = None
+            continue
+        if (prev is not None and k == prev + 1
+                and marks[prev][0] == indent and marks[prev][1] == marker):
+            run.append(k)
+        else:
+            flush()
+            run = [k]
+        prev = k
+    flush()
+    return paras
+
+
+def collect_python(text: str, lines: list[str]) -> list[Para]:
+    marks: dict[int, tuple[str, str, str]] = {}
+    try:
+        for tok in tokenize.generate_tokens(io.StringIO(text).readline):
+            if tok.type != tokenize.COMMENT:
+                continue
+            li = tok.start[0] - 1
+            line = lines[li]
+            fns = len(line) - len(line.lstrip())
+            if tok.start[1] == fns:     # full-line comment only (skip trailing)
+                marks[li] = (line[:fns], "#", line[fns + 1:])
+    except (tokenize.TokenError, IndentationError, SyntaxError, ValueError):
+        pass
+    return group_comment_marks(marks, lines)
+
+
+LANG_CFG = {
+    "rust": dict(line=["///", "//!", "//"], bopen="/*", bclose="*/", bnest=True,
+                 strings=['"'], rust_raw=True, docopen=[]),
+    "lean": dict(line=["--"], bopen="/-", bclose="-/", bnest=True,
+                 strings=['"'], rust_raw=False, docopen=["/--", "/-!"]),
+}
+
+DOC_NONPROSE = re.compile(r"^(\s|[-*+]\s|\d+[.)]\s|[|#]|```)")
+
+
+def doc_block_end(lines: list[str], start: int, cfg: dict) -> int | None:
+    """The index of the line closing the doc block opened on `lines[start]`, or None."""
+    depth = 0
+    for k in range(start, len(lines)):
+        line = lines[k]
+        col = len(lines[start]) - len(lines[start].lstrip()) if k == start else 0
+        while col < len(line):
+            if line.startswith(cfg["bclose"], col):
+                depth -= 1
+                if depth == 0:
+                    return k
+                col += len(cfg["bclose"])
+            elif line.startswith(cfg["bopen"], col):
+                depth += 1
+                col += len(cfg["bopen"])
+            else:
+                col += 1
+    return None
+
+
+def collect_doc_block(lines: list[str], start: int, end: int, opener: str) -> list[Para]:
+    """The prose paragraphs of a doc block: the opener stays the first word of the first
+    paragraph and the closer the last word of the last one, so a rewrap keeps
+    `/-- text` on the first line and `text -/` on the last. Paragraphs that look like
+    lists, code, or tables are left alone."""
+    indent = lines[start][:len(lines[start]) - len(lines[start].lstrip())]
+    content: list[str] = []
+    for k in range(start, end + 1):
+        s = lines[k]
+        if k == start:
+            s = s[len(indent) + len(opener):]
+            if s.startswith(" "):
+                s = s[1:]
+        elif s.startswith(indent):
+            s = s[len(indent):]
+        if k == end:
+            s = s[:s.rfind("-/")].rstrip()
+        content.append(s)
+    paras: list[Para] = []
+    k = 0
+    while k < len(content):
+        if content[k].strip() == "":
+            k += 1
+            continue
+        j = k
+        while j < len(content) and content[j].strip() != "":
+            j += 1
+        block = content[k:j]
+        if not any(DOC_NONPROSE.match(ln) for ln in block):
+            lead = opener if k == 0 else ""
+            tail = "-/" if j == len(content) else ""
+            paras.append(Para(start + k + 1, start + j, lines[start + k:start + j], block,
+                              indent, "", lead, tail))
+        k = j
+    return paras
+
+
+def collect_code_comments(lines: list[str], cfg: dict) -> list[Para]:
+    """Full-line line-comments, tracking strings + nested block comments so a
+    marker inside a string or block comment is never treated as a comment; and, for
+    the languages that have them, the paragraphs of doc blocks that start a line."""
+    marks: dict[int, tuple[str, str, str]] = {}
+    docs: list[Para] = []
+    depth = 0
+    in_str = None  # (closer, raw)
+    li = -1
+    while li + 1 < len(lines):
+        li += 1
+        line = lines[li]
+        L = len(line)
+        col = 0
+        fns = len(line) - len(line.lstrip())
+        opener = next((o for o in cfg["docopen"] if line.startswith(o, fns)), None)
+        if opener and depth == 0 and in_str is None:
+            end = doc_block_end(lines, li, cfg)
+            if end is not None:
+                docs.extend(collect_doc_block(lines, li, end, opener))
+                li = end
+                continue
+        while col < L:
+            if depth > 0:
+                if line.startswith(cfg["bclose"], col):
+                    depth -= 1
+                    col += len(cfg["bclose"])
+                elif cfg["bnest"] and line.startswith(cfg["bopen"], col):
+                    depth += 1
+                    col += len(cfg["bopen"])
+                else:
+                    col += 1
+                continue
+            if in_str is not None:
+                closer, raw = in_str
+                if not raw and line.startswith("\\", col):
+                    col += 2
+                elif line.startswith(closer, col):
+                    in_str = None
+                    col += len(closer)
+                else:
+                    col += 1
+                continue
+            # code context
+            if line.startswith(cfg["bopen"], col):
+                depth += 1
+                col += len(cfg["bopen"])
+                continue
+            marker = next((m for m in cfg["line"] if line.startswith(m, col)), None)
+            if marker:
+                if col == fns:          # full-line comment
+                    marks[li] = (line[:fns], marker, line[fns + len(marker):])
+                break                   # rest of the line is a comment
+            if cfg["rust_raw"] and (line.startswith('r"', col) or line.startswith("r#", col)):
+                k = col + 1
+                hashes = 0
+                while k < L and line[k] == "#":
+                    hashes += 1
+                    k += 1
+                if k < L and line[k] == '"':
+                    in_str = ('"' + "#" * hashes, True)
+                    col = k + 1
+                    continue
+            sd = next((s for s in cfg["strings"] if line.startswith(s, col)), None)
+            if sd:
+                in_str = (sd, False)
+                col += len(sd)
+                continue
+            col += 1
+        # strings/block comments persist across newlines (in_str, depth kept)
+    return sorted(group_comment_marks(marks, lines) + docs, key=lambda p: p.start)
+
+
+def table_lines(ext: str, lines: list[str]) -> set[int]:
+    """The 1-based lines that the over-width report leaves alone: Markdown pipe tables and
+    fenced code blocks, and rst grid tables, whose widths follow their columns."""
+    exempt: set[int] = set()
+    n = len(lines)
+    if ext in (".md", ".markdown"):
+        i = 0
+        while i < n:
+            fm = FENCE.match(lines[i])
+            if fm:
+                fence = re.escape(fm.group(1)[0])
+                j = i + 1
+                while j < n and not re.match(rf"^\s{{0,3}}{fence}{{3,}}\s*$", lines[j]):
+                    j += 1
+                exempt.update(range(i + 1, min(j, n - 1) + 2))
+                i = j + 1
+                continue
+            if BLANK.match(lines[i]):
+                i += 1
+                continue
+            j = i
+            while j < n and not BLANK.match(lines[j]) and not FENCE.match(lines[j]):
+                j += 1
+            block = lines[i:j]
+            if any("|" in ln for ln in block) and any(TABLE_DELIM.match(ln) for ln in block):
+                exempt.update(range(i + 1, j + 1))
+            i = j
+    elif ext == ".rst":
+        exempt.update(i + 1 for i, ln in enumerate(lines) if RST_GRID.match(ln))
+    return exempt
+
+
+def extract(ext: str, text: str, lines: list[str]) -> list[Para]:
+    if ext in RST_EXTS:
+        return collect_rst(lines)
+    if ext in CODE_LANGS:
+        lang = CODE_LANGS[ext]
+        if lang == "python":
+            return collect_python(text, lines)
+        return collect_code_comments(lines, LANG_CFG[lang])
+    return collect_markdown(lines)  # prose/plain-text default
+
+
+# --------------------------------------------------------------------------- #
+# Tokenizing (unbreakable spans) + greedy wrap
+# --------------------------------------------------------------------------- #
+SPAN = re.compile(
+    r"""
+      (?P<bt>`+)(?:.+?)(?P=bt)                                   # inline code / rst literal
+    | :[A-Za-z][\w+-]*:`[^`\n]+`                                 # rst role  :math:`...`
+    | \$(?!\$)[^$\n]+\$                                          # math $...$
+    | \\\((?:.+?)\\\)                                            # math \( ... \)
+    | !?\[[^\]]*\]\((?:[^()\s]|\([^)]*\))*(?:\s+"[^"]*")?\)      # link/image
+    | !?\[[^\]]*\]\[[^\]]*\]                                     # reference link
+    | <[^>\s]+>                                                  # autolink
+    | (?:https?://|www\.)\S+                                     # bare URL
+    """,
+    re.VERBOSE,
+)
+
+
+def tokenize_prose(text: str) -> list[str]:
+    """Whitespace-separated words, except that an unbreakable span is never split, so a
+    span containing spaces is one word together with the punctuation attached to it
+    (`` (`x`, `` stays whole)."""
+    tokens: list[str] = []
+    i, n = 0, len(text)
+    while i < n:
+        if text[i].isspace():
+            i += 1
+            continue
+        k = i
+        while k < n and not text[k].isspace():
+            m = SPAN.match(text, k)
+            k = m.end() if m else k + 1
+        tokens.append(text[i:k])
+        i = k
+    return tokens
+
+
+def greedy_wrap(tokens: list[str], width: int, line_prefix: str) -> list[str]:
+    avail = max(1, width - disp_width(line_prefix))
+    lines: list[str] = []
+    cur = ""
+    for t in tokens:
+        if cur == "":
+            cur = t
+        elif disp_width(cur) + 1 + disp_width(t) <= avail:
+            cur += " " + t
+        else:
+            lines.append(line_prefix + cur)
+            cur = t
+    if cur or not lines:
+        lines.append(line_prefix + cur)
+    return lines
+
+
+HARDBREAK = re.compile(r"(  +|\\)$")
+
+
+def ideal_wrap(p: Para, width: int) -> list[str]:
+    line_prefix = p.indent + p.prefix
+    segments: list[tuple[list[str], str]] = []
+    seg: list[str] = []
+    for ln in p.content:
+        hb = HARDBREAK.search(ln)
+        seg.append(HARDBREAK.sub("", ln).rstrip())
+        if hb:
+            segments.append((seg, "  " if hb.group(1) != "\\" else " \\"))
+            seg = []
+    if seg or not segments:
+        segments.append((seg, ""))
+
+    out: list[str] = []
+    for si, (seg_lines, marker) in enumerate(segments):
+        toks = tokenize_prose(" ".join(s for s in seg_lines if s))
+        if si == 0 and p.lead:
+            toks = [p.lead] + toks
+        if si == len(segments) - 1 and p.tail:
+            toks = toks + [p.tail]
+        wrapped = greedy_wrap(toks, width, line_prefix) if toks else [line_prefix.rstrip()]
+        if marker:
+            wrapped[-1] += marker
+        out.extend(wrapped)
+    return out
+
+
+def norm(lines: list[str]) -> list[str]:
+    return [ln.rstrip() for ln in lines]
+
+
+def split_span(line: str) -> bool:
+    """Does the line end inside an inline code or math span (an odd number of backticks or
+    dollar signs)? Such a split is always worth repairing."""
+    return line.count("`") % 2 == 1 or line.count("$") % 2 == 1
+
+
+def needs_rewrap(p: Para, ideal: list[str], width: int, slack: int) -> str | None:
+    """The reason to rewrap the paragraph, or None. A paragraph whose ideal wrap merely differs
+    is left alone: it is flagged when a line exceeds the width, when a line splits a span, or
+    when a line falls short of the width by at least `slack` columns although the first word of
+    the next line would have fitted on it."""
+    if norm(ideal) == norm(p.raw):
+        return None
+    maxw = max((disp_width(ln) for ln in p.raw), default=0)
+    if maxw > width:
+        return f"line exceeds {width} cols (widest {maxw})"
+    if any(split_span(ln) for ln in p.raw):
+        return "a code or math span is split across lines"
+    for k in range(len(p.raw) - 1):
+        w = disp_width(p.raw[k].rstrip())
+        nxt = tokenize_prose(p.raw[k + 1].strip())
+        if nxt and w + 1 + disp_width(nxt[0]) <= width and width - w >= slack:
+            return f"line {p.start + k} is {width - w} cols short and the next word fits"
+    return None
+
+
+# --------------------------------------------------------------------------- #
+# main
+# --------------------------------------------------------------------------- #
+def main() -> int:
+    ap = argparse.ArgumentParser(
+        description="Flag / suggest / apply rewraps for prose a git edit touched.")
+    src = ap.add_mutually_exclusive_group()
+    src.add_argument("--staged", action="store_true", help="only staged edits (index vs HEAD)")
+    src.add_argument("--commit", metavar="REF", help="edits relative to REF (working tree vs REF)")
+    out = ap.add_mutually_exclusive_group()
+    out.add_argument("--show", action="store_true", help="print the suggested rewrap under each flag")
+    out.add_argument("--diff", action="store_true", help="print a unified diff of the rewraps")
+    out.add_argument("--fix", action="store_true", help="apply the rewraps in place (edited paragraphs only)")
+    ap.add_argument("--width", type=int, default=80, help="target width in display columns (default 80)")
+    ap.add_argument("--slack", type=int, default=10,
+                    help="flag a short line only when it is this many columns short of the width "
+                         "and the next word would fit (default 10); over-width lines and split "
+                         "spans are always flagged")
+    ap.add_argument("--ext", action="append", default=[], help="extra prose extension (repeatable)")
+    ap.add_argument("paths", nargs="*", help="limit to these paths")
+    args = ap.parse_args()
+
+    if args.staged and (args.fix or args.diff):
+        ap.error("--fix/--diff operate on the working tree and cannot be combined with --staged")
+
+    mode = "staged" if args.staged else "commit" if args.commit else "worktree"
+    sel = diff_selectors(mode, args.commit or "")
+    root = git(["rev-parse", "--show-toplevel"]).strip()
+    extra = {e if e.startswith(".") else "." + e for e in args.ext}
+    known = PROSE_EXTS | RST_EXTS | set(CODE_LANGS) | extra
+
+    files = changed_files(sel)
+    if args.paths:
+        wanted = {os.path.relpath(os.path.abspath(p), root) for p in args.paths}
+        files = [f for f in files if f in wanted]
+    files = [f for f in files if os.path.splitext(f)[1].lower() in known]
+
+    flagged = 0
+    for path in sorted(files):
+        text = file_text(mode, root, path)
+        if text is None:
+            continue
+        lines = text.split("\n")
+        changed = changed_line_set(sel, path)
+        if not changed:
+            continue
+        ext = os.path.splitext(path)[1].lower()
+        ext = ext if ext in known - extra else ".txt"  # --ext files treated as prose
+
+        edits: list[tuple[int, int, list[str]]] = []
+        covered: set[int] = set()
+        paras = extract(ext, text, lines)
+        for p in paras:
+            covered.update(range(p.start, p.end + 1))
+        covered |= table_lines(ext, lines)
+        for ln in sorted(changed):
+            if ln in covered or ln > len(lines):
+                continue
+            w = disp_width(lines[ln - 1])
+            if w > args.width:
+                if args.fix:
+                    # --fix cannot reflow a line outside a paragraph. Leaving it is not an
+                    # error, but it is reported.
+                    print(f"{path}:{ln}: note: line exceeds {args.width} cols (width {w}),"
+                          " and is not reflowable")
+                    continue
+                flagged += 1
+                # --diff writes the diff to stdout, so the report goes to stderr.
+                print(f"{path}:{ln}: line exceeds {args.width} cols (width {w})",
+                      file=sys.stderr if args.diff else sys.stdout)
+        for p in paras:
+            if not any(p.start <= ln <= p.end for ln in changed):
+                continue
+            ideal = ideal_wrap(p, args.width)
+            reason = needs_rewrap(p, ideal, args.width, args.slack)
+            if reason is None:
+                continue
+            # --fix rewraps the paragraph, so it leaves nothing flagged.
+            if not args.fix:
+                flagged += 1
+            if not (args.diff or args.fix):
+                print(f"{path}:{p.start}-{p.end}: {reason}")
+                if args.show:
+                    for ln in ideal:
+                        print(f"    | {ln}")
+            edits.append((p.start, p.end, ideal))
+
+        if not edits or not (args.diff or args.fix):
+            continue
+        new_lines = lines[:]
+        for start, end, ideal in sorted(edits, key=lambda e: e[0], reverse=True):
+            new_lines[start - 1:end] = ideal
+        new_text = "\n".join(new_lines)
+        if args.diff:
+            for dl in difflib.unified_diff(
+                text.splitlines(keepends=True), new_text.splitlines(keepends=True),
+                fromfile=f"a/{path}", tofile=f"b/{path}",
+            ):
+                sys.stdout.write(dl)
+        elif args.fix:
+            with open(os.path.join(root, path), "w", encoding="utf-8") as f:
+                f.write(new_text)
+            print(f"rewrapped {len(edits)} paragraph(s) in {path}")
+
+    return 1 if flagged else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

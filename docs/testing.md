@@ -187,6 +187,7 @@ shannon/
 │   ├── check-tmp-path.bats
 │   ├── check-portable-commands.bats
 │   ├── install.bats
+│   ├── rewrap-check.bats
 │   ├── session-start.bats
 │   ├── save-session.bats
 │   └── fixtures/
@@ -196,7 +197,7 @@ shannon/
         └── test.yml
 ```
 
-`check-memory-synthesis.bats`, `check-tmp-path.bats`, and `check-portable-commands.bats` use inline payloads (no fixture files); the last builds its stub-and-symlink PATH in `setup()` under `$BATS_TEST_TMPDIR`. `session-start.bats` builds its memory-corpus and project-context directories dynamically in `setup()`, scoped to `$BATS_TEST_TMPDIR` and shrunk via `SHANNON_CONTEXT_SIZE=1000`. `install.bats` runs the installer against a per-test `CLAUDE_DIR` under `$BATS_TEST_TMPDIR`. Only `save-session.bats` needs a checked-in fixture (`valid-transcript.jsonl`) so the round-trip can be verified deterministically.
+`check-memory-synthesis.bats`, `check-tmp-path.bats`, and `check-portable-commands.bats` use inline payloads (no fixture files); the last builds its stub-and-symlink PATH in `setup()` under `$BATS_TEST_TMPDIR`. `session-start.bats` builds its memory-corpus and project-context directories dynamically in `setup()`, scoped to `$BATS_TEST_TMPDIR` and shrunk via `SHANNON_CONTEXT_SIZE=1000`. `install.bats` runs the installer against a per-test `CLAUDE_DIR` under `$BATS_TEST_TMPDIR`. `rewrap-check.bats` commits each case in a fresh git repository under `$BATS_TEST_TMPDIR`, edits it, and runs the script on the edit. Only `save-session.bats` needs a checked-in fixture (`valid-transcript.jsonl`) so the round-trip can be verified deterministically.
 
 ## CI
 

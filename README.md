@@ -75,6 +75,12 @@ doesn't apply— but they need different fixes.
   any user-customized entries at a matching event/matcher are left
   untouched with a warning.
 
+- **`bin/rewrap-check`** — for the agent to run on its own edits. It
+  flags the paragraphs of Markdown, reStructuredText, and source
+  comments that an edit has left badly wrapped, and ignores untouched
+  text. With `--fix`, it rewraps them. `install.sh` does not install
+  it; put it on your `PATH` if you want it.
+
 ## Memories vs skills
 
 Claude Code persists context across sessions in two distinct forms:
