@@ -38,6 +38,9 @@ A seed refers only to other seeds. A reference to any other memory points
 adopters at something they do not have, which means that the corpus is
 incomplete; `tests/memory-references.bats` checks this.
 
+A core seed, marked `core: true` in its frontmatter, is read in full at
+every session start and after every compaction, so it must stay compact.
+
 ## Sanitization is mandatory for shipped content
 
 This is an open-source repo distributed publicly. Anything that ships in

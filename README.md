@@ -61,7 +61,10 @@ doesn't apply— but they need different fixes.
   attribution requirements, scrub-paths-from-global-memories, recipe-bearing
   index summaries, hook script factoring, narration discipline, repo-local
   scratch directories. These are the failure modes that show up
-  consistently across users.
+  consistently across users. A seed marked `core: true` in its
+  frontmatter is read in full at every session start and after every
+  compaction; `hooks/pre-compact.sh` asks the compaction summary to name
+  the other memories to read.
 
 - **Opt-in memories** — These try to address a wider range of common
   failure modes of Claude Code.

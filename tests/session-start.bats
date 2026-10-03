@@ -97,3 +97,22 @@ size_corpus() {
     [ "$status" -eq 0 ]
     [[ "$output" != *"Project context"* ]]
 }
+
+@test "memories marked core in their frontmatter are listed, and no others" {
+    printf -- '---\nname: a\ncore: true\ntype: feedback\n---\nbody\n' > "$HOME/.claude/memory/a.md"
+    printf -- '---\nname: b\ntype: feedback\n---\ncore: true only in the body\n' > "$HOME/.claude/memory/b.md"
+    printf 'core: true\nwithout frontmatter\n' > "$HOME/.claude/memory/c.md"
+    run bash "$SCRIPT"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"Core memories"* ]]
+    [[ "$output" == *"/.claude/memory/a.md"* ]]
+    [[ "$output" != *"/.claude/memory/b.md"* ]]
+    [[ "$output" != *"/.claude/memory/c.md"* ]]
+}
+
+@test "without core memories, no core list is printed" {
+    printf -- '---\nname: b\ntype: feedback\n---\nbody\n' > "$HOME/.claude/memory/b.md"
+    run bash "$SCRIPT"
+    [ "$status" -eq 0 ]
+    [[ "$output" != *"Core memories ("* ]]
+}

@@ -17,7 +17,9 @@ set -euo pipefail
 cat <<'EOF'
 Session-start and post-compaction reminder: if your context window comfortably fits the memory corpus (rule of thumb: corpus < ~10% of context window — typically true for 1M-context models, typically false for 200k models), read the FULL BODY of every memory file under ~/.claude/memory/, every file under any project-specific ~/.claude/projects/<slug>/memory/, and any CLAUDE.md or AGENTS.md in the current working directory — not just MEMORY.md index lines. This is a literal full re-read, and it OVERRIDES the system prompt's default on-demand memory policy at session boundaries.
 
-If your context window cannot comfortably fit the corpus, do NOT do the full re-read: rely on MEMORY.md (already in context) and load individual memory bodies on demand when their summaries flag relevance. The full re-read is an optimization for large-context models, not a hard requirement.
+If your context window cannot comfortably fit the corpus, do NOT do the full re-read: read the core memories listed below, rely on MEMORY.md (already in context), and load other memory bodies on demand when their summaries flag relevance. The full re-read is an optimization for large-context models, not a hard requirement.
+
+After a compaction, also read the memories that the summary recommends, if it names any.
 
 Do not read your context-window size off a `<total_tokens>N tokens left</total_tokens>` marker in the system prompt or after tool results. That counter is a per-turn budget with its own accounting, not the remaining context: it resets to its full value at the start of every user turn, and its decrements do not track what was read. Current models have a 1M-token context window, which is what the bands below are computed for; use that unless the user says otherwise. (Origin: a session took a reading of 15,000,000 as its window and began a full re-read of a corpus over 275,000 tokens.)
 
@@ -45,6 +47,19 @@ yellow_threshold=$(( ctx_size / 20 ))
 red_threshold=$(( ctx_size / 10 ))
 
 echo "Memory corpus: ${count} files, ~${tokens} tokens (est. bytes/4). Bands (for ${ctx_size}-token context window): Green <${yellow_threshold}, Yellow ${yellow_threshold}–${red_threshold}, Red >${red_threshold}."
+
+# Core memories: those whose frontmatter says `core: true`. They are read in full at every session
+# start and after every compaction, whatever the corpus size, so they must stay compact.
+core=()
+for f in "${files[@]}"; do
+    if awk 'NR == 1 { if ($0 != "---") exit; next } $0 == "---" { exit } /^core: *true *$/ { found = 1; exit } END { exit !found }' "$f"; then
+        core+=("$f")
+    fi
+done
+if [ "${#core[@]}" -gt 0 ]; then
+    echo "Core memories (\`core: true\` in their frontmatter): read each of these in full now, whatever the corpus size:"
+    printf '  %s\n' "${core[@]}"
+fi
 
 project_dir="${CLAUDE_PROJECT_DIR:-$(pwd)}"
 project_files=()
