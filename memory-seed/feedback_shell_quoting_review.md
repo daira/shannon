@@ -1,6 +1,6 @@
 ---
 name: Review shell scripts and heredoc bodies for quoting
-description: Always review shell scripts for variable quoting issues before committing. Also: in single-quoted heredocs (`<<'EOF'`), do NOT backslash-escape backticks or dollar-signs — single quotes already prevent shell expansion, so the backslash becomes literal. Use bare characters inside `<<'EOF'` heredoc bodies; only escape inside `<<EOF` (no quotes) heredocs where interpolation DOES happen. Also: wrap exit-code-sensitive pipelines in `(set -o pipefail && ...)` so a trailing filter like `| head` doesn't mask an upstream command's non-zero exit. A check that exists to gate a later mutating command must be &&-wired to it with rc-meaningful output, or the mutation issued as a separate call after reading the check — `check; mutate` mutates regardless.
+description: Always review shell scripts for variable quoting issues before committing. Be particularly careful where one language is nested in another (a script in a heredoc of another script, Makefile recipes, GitHub Actions `${{ }}` expressions, m4, `bash -c` strings): list every layer the code passes through and check its quoting at each. Also: in single-quoted heredocs (`<<'EOF'`), do NOT backslash-escape backticks or dollar-signs — single quotes already prevent shell expansion, so the backslash becomes literal. Use bare characters inside `<<'EOF'` heredoc bodies; only escape inside `<<EOF` (no quotes) heredocs where interpolation DOES happen. Also: wrap exit-code-sensitive pipelines in `(set -o pipefail && ...)` so a trailing filter like `| head` doesn't mask an upstream command's non-zero exit. A check that exists to gate a later mutating command must be &&-wired to it with rc-meaningful output, or the mutation issued as a separate call after reading the check — `check; mutate` mutates regardless.
 type: feedback
 ---
 
@@ -17,6 +17,32 @@ since shellcheck does not see every context. Key rules:
 - Inside double-quoted strings, `$VAR` expands without word-splitting (safe)
 - Everywhere else (arguments, `for` loops, `test`/`[` expressions), `"$VAR"` is needed
 - `"$(command)"` is needed when used as an argument
+
+## Nested languages: every layer has its own quoting
+
+Be particularly careful wherever code in one language is embedded in another. Each layer has its
+own quoting and expansion rules, so a character that is inert in one layer can be live in the next,
+and a script that looks right at the layer you are reading can be wrong at the layer that runs it.
+For example:
+
+- **A script in a heredoc of another script.** `<<'EOF'` passes the body through untouched;
+  `<<EOF` expands `$`, backticks, and backslashes first (see the next section).
+- **Recipes in a Makefile.** make expands `$` before the shell sees the line, so a shell variable
+  is written `$$var`. Each recipe line runs in its own shell unless lines are joined with `\` or
+  `.ONESHELL` is set.
+- **GitHub Actions workflows.** A `${{ … }}` expression is substituted into the script's text
+  before the shell runs it, so an expression that carries untrusted input, such as a pull
+  request's title or a branch name, becomes shell code. Pass the value through `env:` and refer to
+  it as `"$VAR"`; workflow linters flag this as template injection.
+- **m4,** as in autoconf scripts. Its quotes are `` ` `` and `'`, `$1` to `$9` are macro
+  arguments, and `#` starts a comment, so shell code in a macro body can change meaning.
+- **Command strings run by another program:** `bash -c '…'`, `ssh host '…'`, `find … -exec sh -c`,
+  `xargs`, and a Python, awk, or jq program inside a shell string.
+
+**How to apply:** before writing the inner code, list the layers that it passes through, outermost
+first, and what each interprets. Then check `$`, backticks, both kinds of quote, backslashes, `#`,
+and newlines against every layer. Where possible, remove a layer instead: a separate script file, a
+quoted heredoc, `env:` in a workflow, or `-f file` for awk and jq.
 
 ## Heredoc bodies and the single-quote rule
 
