@@ -36,7 +36,7 @@ Before each commit, amend, reword, PR body, or posted comment, and on each chang
 - a run of more than about 25 words without internal punctuation;
 - two semicolons in one sentence.
 
-The `long-sentences` script, which Shannon's `install.sh` installs as `~/.claude/long-sentences`, does it. Pipe the text to it, or pipe a diff to it with `--diff` to check only the comments that the diff adds (`git diff --cached | ~/.claude/long-sentences --diff`). Run it as its own step, and read its output before committing or posting; do not gate the step on it. A flagged sentence is one that might need attention, not necessarily one to change.
+The `long-sentences` script, which Shannon's `install.sh` installs as `~/.claude/long-sentences`, does it. Pipe the text to it, or pipe a diff to it with `--diff` to check only the comments that the diff adds (`git diff --cached | ~/.claude/long-sentences --diff`). Run it as its own step, and read its output before committing or posting; do not gate the step on it. A flagged sentence is one that might need attention, not necessarily one to change. Leave a sentence that the user has approved.
 
 Then read each flagged sentence, and every sentence over about 20 words, for **subject-verb distance**, which no script measures. If more than about 10–12 words of modifier separate the main subject from its main verb, put a comma at the end of the longest modifier, or split the sentence. A pause-comma is acceptable there even where grammar would omit it. Restrictive modifiers stacked two or more deep ("the X constrained to Y the Z used to W") are often why the distance grew. They usually need a comma at the end of the outer one. These thresholds are approximate: lower them when a sentence that passes still reads awkwardly, and raise them if the commas start to stutter.
 
@@ -46,7 +46,7 @@ Behind the textual tests is a simpler one. If a reader saying the sentence aloud
 
 - **Comma:** for a soft pause, the end of a modifier, or a light aside.
 - **Parentheses or em-dashes** for an aside inside a sentence, chosen by the removability test. If the sentence still holds together and stays accurate without the aside, it is incidental: use parentheses. If removing it damages the argument, it is necessary: use em-dashes, or work it into the sentence, or give it a sentence of its own. An aside can be necessary even when the bare sentence parses, when it supplies the intended referent of a vague noun phrase ("the `Manual` case —user-initiated rebuilds— is logged separately"). Use at most one pair of em-dashes in a sentence. Parentheses do not make an aside free: a sentence that is long only because of its asides still costs the reader, and many asides make frustrating reading.
-- **Semicolons are usually sentence breaks in disguise.** A semicolon can signal that the second clause follows from the first, so check whether that link matters. When it does, an explicit connective ("so", "because", "then") at the start of a new sentence usually carries it as well.
+- **Semicolons are usually sentence breaks in disguise.** A semicolon, like a separating em-dash, says that two independent clauses are more closely connected than a sentence break would imply. Typically the second follows from the first, so check whether that link matters. When it does, an explicit connective ("so", "because", "then") at the start of a new sentence usually carries it as well.
 - **Full stop:** when no punctuation inside the sentence reads cleanly, two short sentences beat one awkward one.
 
 ## Lists
