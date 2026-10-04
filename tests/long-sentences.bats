@@ -124,3 +124,23 @@ Co-authored-by: Someone"
     run "$SCRIPT" <<< "Start, \\\`a $(words 26)\` end."
     [ "$status" -eq 1 ]
 }
+
+@test "a shorter fence inside a longer fence does not close it" {
+    run "$SCRIPT" <<< "Text.
+
+\`\`\`\`
+\`\`\`
+$(words 40)
+\`\`\`\`"
+    [ "$status" -eq 0 ]
+}
+
+@test "a fence of the other character does not close it" {
+    run "$SCRIPT" <<< "Text.
+
+~~~
+\`\`\`
+$(words 40)
+~~~"
+    [ "$status" -eq 0 ]
+}

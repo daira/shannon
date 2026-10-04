@@ -47,14 +47,28 @@ def prose_from_diff(text):
     return "\n".join(lines)
 
 
+FENCE_OPEN = re.compile(r"^ {0,3}(`{3,}|~{3,})(.*)$")
+
+
 def without_fences(text):
-    kept, fenced = [], False
+    """`text` with each fenced code block blanked out. As in CommonMark, the closing fence uses the
+    same character as the opening one, is at least as long, and has nothing after it but spaces; a
+    backtick fence's info string cannot contain a backtick; and an unclosed fence runs to the
+    end."""
+    kept, close = [], None
     for line in text.splitlines():
-        if re.match(r"\s*(```|~~~)", line):
-            fenced = not fenced
+        if close is None:
+            m = FENCE_OPEN.match(line)
+            if m and not (m.group(1)[0] == "`" and "`" in m.group(2)):
+                run = m.group(1)
+                close = re.compile(r"^ {0,3}%s{%d,}[ \t]*$" % (re.escape(run[0]), len(run)))
+                kept.append("")
+            else:
+                kept.append(line)
+        else:
+            if close.match(line):
+                close = None
             kept.append("")
-        elif not fenced:
-            kept.append(line)
     return "\n".join(kept)
 
 

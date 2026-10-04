@@ -232,3 +232,10 @@ LONG='A paragraph that an edit has made much too long for a width of forty colum
     [ "$status" -eq 0 ]
     [ -z "$output" ]
 }
+
+@test "a shorter fence inside a longer fence does not close it" {
+    edit a.md $'x\n' $'````\n```\n'"$LONG"$'\n````\n'
+    run "$SCRIPT" --width 40 a.md
+    [ "$status" -eq 0 ]
+    [ -z "$output" ]
+}
