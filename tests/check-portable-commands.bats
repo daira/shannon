@@ -51,6 +51,7 @@ feed_raw() {
 assert_denies_sed() {
     [ "$status" -eq 0 ]
     [[ "$output" == *permissionDecision*deny* ]]
+    # shellcheck disable=SC2016  # the backticks are literal text in the hook's message
     [[ "$output" == *'`sed` (use `gsed`)'* ]]
 }
 

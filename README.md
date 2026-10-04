@@ -75,6 +75,19 @@ doesn't apply— but they need different fixes.
   any user-customized entries at a matching event/matcher are left
   untouched with a warning.
 
+- **`bin/rewrap-check`** — for the agent to run on its own edits. It
+  flags the paragraphs of Markdown, reStructuredText, and source
+  comments that an edit has left badly wrapped, and ignores untouched
+  text. With `--fix`, it rewraps them. With `--all`, it checks whole
+  files instead, whether git tracks them or not. `install.sh` does not
+  install it; put it on your `PATH` if you want it.
+
+- **`bin/long-sentences`** — for the agent to run on prose that it has
+  written, such as a commit message or the comments that a diff adds.
+  It flags sentences that might need attention: long ones, ones with a
+  long run without punctuation, and ones with two semicolons. Like
+  `rewrap-check`, it is not installed by `install.sh`.
+
 ## Memories vs skills
 
 Claude Code persists context across sessions in two distinct forms:
