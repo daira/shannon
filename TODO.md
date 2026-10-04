@@ -52,18 +52,18 @@ Tracking list for Shannon work. Entries are brief; details for any item live in 
 
 ## Seed memories — remaining
 
-- [ ] `feedback_no_push_without_request.md` (port from `~/.claude/memory/`, sanitize).
-- [ ] `feedback_commit_coauthor.md` (port + sanitize; the per-org short-form rule must be replaced with generic guidance, since it is specific to the originating user's repos).
+- [x] `feedback_no_push_without_request.md` (port from `~/.claude/memory/`, sanitize). It also carries the security-fix rule, as a recommended default policy.
+- [x] `feedback_commit_coauthor.md` (port + sanitize; the per-org short-form rule must be replaced with generic guidance, since it is specific to the originating user's repos).
 - [ ] `feedback_factor_hook_scripts.md` (port + sanitize).
 - [ ] `feedback_silent_progress_polling.md` — port, or move to the opt-in tier if narration thresholds are too user-specific.
 
-Already written: `feedback_memory_size_budget`, `feedback_rich_memory_summaries`, `feedback_external_reports`, `feedback_memory_vs_skill`, `feedback_shell_quoting_review`.
+Already written: `feedback_ambient_credentials`, `feedback_commit_coauthor`, `feedback_commits_sequential_coherence`, `feedback_durable_prose`, `feedback_external_reports`, `feedback_filesystem_scope`, `feedback_git_safety`, `feedback_hard_wrapped_prose`, `feedback_kill_by_pid`, `feedback_licence_check_before_dependency`, `feedback_long_running_commands`, `feedback_mechanism_over_intention`, `feedback_memory_size_budget`, `feedback_memory_vs_skill`, `feedback_no_push_without_request`, `feedback_pacing`, `feedback_publishing`, `feedback_readable_prose`, `feedback_repo_scratch_dirs`, `feedback_reuse_before_building`, `feedback_rich_memory_summaries`, and `feedback_shell_quoting_review`.
 
 ## Opt-in memories tier
 
 - [ ] Decide the mechanism: subdirectory under `memory-seed/`? Separate top-level dir? How does the installer let users opt in?
 - [ ] Fill in the README "Opt-in memories" TBD section once the mechanism is settled.
-- [ ] Likely initial candidates: git-cluster memories, narration discipline, commit-message conventions, prose-style preferences.
+- [ ] Likely initial candidates: narration discipline. Git safety, commit-message conventions, and prose style became seeds once the seed policy admitted practices that prevent harm and guidance on clear writing.
 
 ## README placeholders
 
