@@ -696,10 +696,15 @@ def norm(lines: list[str]) -> list[str]:
     return [ln.rstrip() for ln in lines]
 
 
+CODE_SPAN = re.compile(r"(`+).+?(?<!`)\1(?!`)")
+
+
 def split_span(line: str) -> bool:
-    """Does the line end inside an inline code or math span (an odd number of backticks or
-    dollar signs)? Such a split is always worth repairing."""
-    return line.count("`") % 2 == 1 or line.count("$") % 2 == 1
+    """Does the line end inside an inline code or math span? It does if an odd number of backticks,
+    or of unescaped dollar signs, remains once its complete code spans are removed. Such a split is
+    always worth repairing."""
+    bare = CODE_SPAN.sub("", line)
+    return bare.count("`") % 2 == 1 or bare.replace("\\$", "").count("$") % 2 == 1
 
 
 def needs_rewrap(p: Para, ideal: list[str], width: int, slack: int) -> str | None:

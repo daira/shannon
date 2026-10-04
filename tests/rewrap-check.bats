@@ -197,3 +197,17 @@ LONG='A paragraph that an edit has made much too long for a width of forty colum
     [ "$status" -eq 1 ]
     [[ "$output" == *"cannot read missing.md"* ]]
 }
+
+@test "a dollar sign inside a code span is not taken for a split math span" {
+    edit a.md $'x\n' $'Run `kill $(pgrep x)` to stop it\nnow, and check.\n'
+    run "$SCRIPT" --width 40 a.md
+    [ "$status" -eq 0 ]
+    [ -z "$output" ]
+}
+
+@test "a code span split across lines is still flagged" {
+    edit a.md $'x\n' $'Run `kill $(pgrep\nx)` to stop it now.\n'
+    run "$SCRIPT" --width 40 a.md
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"a code or math span is split across lines"* ]]
+}
