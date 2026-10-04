@@ -29,6 +29,10 @@ Tracking list for Shannon work. Entries are brief; details for any item live in 
 - [ ] Update `check-tmp-path.sh` to check whether `work` and `keep` are already gitignored rather than suggesting that the agent check.
 - [ ] Alternative to `check-portable-commands.sh` worth evaluating: override the PATH seen by the Claude Code process so that the preferred implementations are found under the native names (a `gnubin`-style directory of symlinks, prepended for the `claude` process only, not for the user's shell). Transparent, no denies to recover from, and it covers tools the table does not list. Costs: on macOS the per-command shell initialization (`path_helper` in login shells) can reorder PATH; a literal `PATH` in `settings.json`'s `env` is brittle; and scripts the agent runs would then see different tools from the user's own shell and from CI, a "works for the agent, fails for me" class of confusion. The hook was chosen for now because it keeps the agent's environment identical to the user's.
 
+## Utility scripts
+
+- [ ] Extend `rewrap-check`'s language support to Swift, Kotlin, Go, Sage, C, C++, Java, JavaScript, LaTeX, and HTML. It now covers Markdown and plain text, reStructuredText, and the comments of Rust, Python, and Lean. Most of these have `//` and `/* … */` comments, as Rust does, and Sage has Python's syntax; LaTeX and HTML are prose formats, each with its own markup to keep whole.
+
 ## Installer
 
 - [x] Fill in `install.sh`. Implements `--copy` (default) and `--link` modes plus `--dry-run`. Non-destructive: existing files are skipped, never overwritten (unless `--force` — see below). The maintainer's setup of pre-symlinked files is correctly recognised as already-installed (every `install_file` reports "skip (exists)").
@@ -48,18 +52,18 @@ Tracking list for Shannon work. Entries are brief; details for any item live in 
 
 ## Seed memories — remaining
 
-- [ ] `feedback_no_push_without_request.md` (port from `~/.claude/memory/`, sanitize).
-- [ ] `feedback_commit_coauthor.md` (port + sanitize; the per-org short-form rule must be replaced with generic guidance, since it is specific to the originating user's repos).
+- [x] `feedback_no_push_without_request.md` (port from `~/.claude/memory/`, sanitize). It also carries the security-fix rule, as a recommended default policy.
+- [x] `feedback_commit_coauthor.md` (port + sanitize; the per-org short-form rule must be replaced with generic guidance, since it is specific to the originating user's repos).
 - [ ] `feedback_factor_hook_scripts.md` (port + sanitize).
 - [ ] `feedback_silent_progress_polling.md` — port, or move to the opt-in tier if narration thresholds are too user-specific.
 
-Already written: `feedback_memory_size_budget`, `feedback_rich_memory_summaries`, `feedback_external_reports`, `feedback_memory_vs_skill`, `feedback_shell_quoting_review`.
+Already written: `feedback_ambient_credentials`, `feedback_commit_coauthor`, `feedback_commits_sequential_coherence`, `feedback_durable_prose`, `feedback_external_reports`, `feedback_filesystem_scope`, `feedback_git_safety`, `feedback_hard_wrapped_prose`, `feedback_kill_by_pid`, `feedback_licence_check_before_dependency`, `feedback_long_running_commands`, `feedback_mechanism_over_intention`, `feedback_memory_size_budget`, `feedback_memory_vs_skill`, `feedback_no_push_without_request`, `feedback_pacing`, `feedback_publishing`, `feedback_readable_prose`, `feedback_repo_scratch_dirs`, `feedback_reuse_before_building`, `feedback_rich_memory_summaries`, and `feedback_shell_quoting_review`.
 
 ## Opt-in memories tier
 
 - [ ] Decide the mechanism: subdirectory under `memory-seed/`? Separate top-level dir? How does the installer let users opt in?
 - [ ] Fill in the README "Opt-in memories" TBD section once the mechanism is settled.
-- [ ] Likely initial candidates: git-cluster memories, narration discipline, commit-message conventions, prose-style preferences.
+- [ ] Likely initial candidates: narration discipline. Git safety, commit-message conventions, and prose style became seeds once the seed policy admitted practices that prevent harm and guidance on clear writing.
 
 ## README placeholders
 

@@ -8,7 +8,7 @@ Before writing or editing a memory-file under `~/.claude/memory/` or `~/.claude/
 
 ## Do not push without an explicit request
 
-After a `git commit` (or `--amend`), do not push, force-push, or otherwise publish unless the user's most recent instruction explicitly says "push", "commit and push", or similar wording naming a publication action. Wording like "commit", "amend", "fold in", or "let me see how it looks" does not authorize a push. The earlier "commit and push" authorization in a session is per-commit, not standing. See `feedback_no_push_without_request.md` for the full rule; on security-fix branches, `feedback_security_fix_no_push.md` applies as a hard requirement (never push, even if asked).
+After a `git commit` (or `--amend`), do not push, force-push, or otherwise publish unless the user's most recent instruction explicitly says "push", "commit and push", or similar wording naming a publication action. Wording like "commit", "amend", "fold in", or "let me see how it looks" does not authorize a push. The earlier "commit and push" authorization in a session is per-commit, not standing. See `feedback_no_push_without_request.md` for the full rule, which recommends never pushing at all on a security-fix branch.
 
 ## Attribution for assisted artifacts
 

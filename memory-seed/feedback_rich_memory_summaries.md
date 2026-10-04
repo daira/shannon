@@ -1,6 +1,7 @@
 ---
 name: Authoring memories — default to global; synthesize with existing ones first; write recipe-bearing summaries; act on memory-worthy observations; match existing styling when updating
 description: "Rules for authoring memories. (1) Default to writing under `~/.claude/memory/` (global) rather than `~/.claude/projects/<slug>/memory/` (project-specific) — cross-project generalizability is the common case. (2) Before creating a new memory, check whether it could be folded into an existing one. (3) Write the `MEMORY.md` index summary so it carries the specific command/recipe/failure-mode — not just the topic name. (4) When the agent notices in conversation that something is memory-worthy ('worth noting', 'this is a refinement to memory X', 'another instance of pattern Y'), the next action should be to write (or to ask), not to narrate. Conversation prose evaporates at compaction; only memory persists across sessions. (5) When updating an existing memory, match the existing styling and emphasis — don't bold or otherwise emphasize the new addition just because it's new (recency bias). (6) Word global memories generically: say 'the user' (and 'they/them') rather than the specific name in rule-describing prose; reserve the name for the user profile memory, direct quotes, and genuine incident attributions."
+core: true
 type: feedback
 ---
 
@@ -46,6 +47,32 @@ If there's no good fit, create the new memory file — but err on the side of sy
 - It uses generic verbs like "be careful" / "always check" without a concrete recipe.
 
 **Body-and-summary as closely-related content.** A memory body and its `MEMORY.md` index summary are *closely-related content* in the sense of Shannon's cross-reference convention (`shannon/CLAUDE.md` "Same or closely-related content across files"): the summary is a recipe-bearing condensation of the body, and an edit to either may require a paired edit to the other. Treat the body-and-summary relationship as an implicit cross-reference for all memory files; the body does not need a per-file `<!-- See also: MEMORY.md -->` comment because the rule applies uniformly across the corpus. When updating either, check whether the other needs the corresponding change.
+
+## 3b. Give a memory a trigger that the context can match
+
+A memory is only useful if it fires. Writing the recipe into the summary (§3) makes it *applicable*;
+this makes it *reachable*. The failure mode is a rule whose trigger is a judgement about the work as
+a whole — "when the proof is turning into bespoke plumbing", "when a function is getting too long",
+"if you find yourself repeating work". Nothing in the context marks the moment when such a judgement
+becomes true, so it tends to be made only in hindsight, and the memory can sit loaded through days
+of work and never fire.
+
+Prefer a trigger that a concrete feature of the context matches:
+
+- **A moment in the workflow.** "Before starting any large refactoring." "After finding a
+  generalization, before moving on." "When you realize that a task is more difficult than it
+  appeared." "After a second failed attempt at the same step." These are steps that the work passes
+  through anyway, so the trigger is matched when it should be.
+- **A syntactic or mechanical signature.** "An induction with one case per constructor." "The
+  same lemma shape at two payload types." "A `git add` naming a directory." Weaker than a
+  workflow moment, but still checkable while working.
+- **A hook, where the rule reduces to one.** This is the limit case: the harness injects the rule
+  at an event, so the trigger does not depend on the agent's judgement at all. The session-start
+  re-read, the memory-synthesis check, and the portable-command check are rules that became hooks
+  for exactly this reason.
+
+When revising a memory that did not fire when it should have, fix the trigger rather than restating
+the rule more emphatically: the content was rarely the problem.
 
 ## 4. When you notice something memory-worthy, *write it* — don't just say "worth noting"
 

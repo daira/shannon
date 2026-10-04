@@ -144,3 +144,13 @@ $(words 40)
 ~~~"
     [ "$status" -eq 0 ]
 }
+
+@test "a sentence may open with emphasis or a link" {
+    run "$SCRIPT" <<< "Start, $(words 20) end. **Bold** $(words 20) end. [Link](url) $(words 20) end."
+    [ "$status" -eq 0 ]
+}
+
+@test "a sentence may end inside emphasis" {
+    run "$SCRIPT" <<< "**A lead, $(words 20) end.** Then, $(words 20) end. _Another, $(words 20) end._ Last."
+    [ "$status" -eq 0 ]
+}

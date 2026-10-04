@@ -1,6 +1,7 @@
 ---
 name: Sanitize external reports and global memories of project-identifying details
 description: When filing bugs / feature requests / PRs outside the user's own project, or when writing global memories that may be shared with other developers' Claude instances, strip filenames, paths, usernames, project names, session-local identifiers, and current-task context that aren't relevant to the artifact's purpose. The conservative default protects users with different working-in-public norms, employer constraints, embargo obligations, and risk profiles. Recipients can always relax permissions for their own usage by editing the artifact locally; the published default should be conservative. Always preserve the Claude attribution line — that's an intentional exception, since attribution is meant to be visible.
+core: true
 type: feedback
 ---
 
@@ -25,6 +26,21 @@ When filing bugs, feature requests, or PRs against projects **outside** the user
 5. **Cautious-by-default for AI usage.** Defaulting to scrub keeps the relaxation decision a per-user, per-context choice that can be made later. Tightening after publication is much harder than starting tight; the asymmetry favours the conservative default, especially for users still building familiarity with AI assistants.
 
 Even when the project itself is public, the *fact* that the user was working on it at a particular time is private context that doesn't belong in an external bug tracker, nor in a memory file destined for other developers' Claude instances.
+
+**Tracked documents in a repository count too.** A design document, README, or plan committed to a
+repository, even the user's own, is read by collaborators and outlives the machine it was written
+on; it carries no local paths (`~/...`, `/Users/<name>/...`), usernames, or machine details. Say "a
+local clone exists" or name the upstream repository and revision instead. A plan file once named the
+clone's local path; the user flagged it under this rule. Working notes under the untracked `keep/`
+are the place for paths ([[feedback_repo_scratch_dirs]]).
+
+**The harness's feedback tool is an external report too.** The `SendFeedback` tool queues a bug or
+idea report about the harness locally; nothing is sent until the user runs `/feedback` and approves
+it. But the queued draft persists on disk and can be sent later, out of the context that produced
+it, so: in a security triage or fixing context, do not draft one at all (the user: "Be careful that
+doesn't leak information if we're in a security triage/fixing context"); elsewhere, scrub it as any
+external report, and say in one line that a draft was queued, since the user was surprised to see
+one drafted without being asked.
 
 **How to apply:**
 

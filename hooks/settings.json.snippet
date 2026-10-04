@@ -11,7 +11,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "transcript=$(jq -re '.transcript_path') && exec ~/.claude/save-session.sh \"$transcript\" --include-thinking"
+            "command": "transcript=$(jq -re '.transcript_path') && ~/.claude/save-session.sh \"$transcript\" --include-thinking && exec ~/.claude/pre-compact.sh"
           }
         ]
       }

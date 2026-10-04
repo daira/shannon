@@ -160,7 +160,7 @@ Known limitation, not tested: a heredoc body line that begins with the tool name
 |---|---|---|
 | `--help` | `install.sh --help` | exit 0, usage printed |
 | Unknown option | `install.sh --bogus` | exit 2, "unknown option" and the usage on stderr |
-| Fresh copy install | empty destination; `install.sh` | exit 0; hook scripts, `jsonl-to-md.py`, seed memories, and `CLAUDE.md` are regular files identical to their sources; `settings.json` is the snippet verbatim; "installed (copy):" lines and the copy-mode notes |
+| Fresh copy install | empty destination; `install.sh` | exit 0; hook scripts, `jsonl-to-md.py`, the utility scripts in `bin/`, seed memories, and `CLAUDE.md` are regular files identical to their sources, and the utility scripts are executable; `settings.json` is the snippet verbatim; "installed (copy):" lines and the copy-mode notes |
 | Fresh link install | empty destination; `install.sh --link` | exit 0; the destinations are symlinks to the checkout's files; "installed (link):" lines and the link-mode notes |
 | Second run | after a copy install; `install.sh` | exit 0; every file reported "skip (exists):" and nothing installed; the settings are re-merged ("update (shannon-managed):" per matcher, "ok (already set):" per env key) with a backup of the previous `settings.json` |
 | `--dry-run` | empty destination; `install.sh --dry-run` | exit 0, "[dry-run]" lines for the directories, the copies, and the snippet; nothing created |

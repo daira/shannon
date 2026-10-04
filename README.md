@@ -15,11 +15,10 @@ the ideas are likely to port to similar agents. This project may well
 become more general in future. High-quality contributions are welcome.
 
 By default, this project focuses on meta-issues of memory retention and
-usage. It is a little opinionated about that, but not about anything
-else. You can opt into additional memory categories that make it more
-opinionated — for example about code development practices; tips for
-how Claude should use the shell, `git`, or other tools to avoid certain
-pitfalls; etc.
+usage. It is a little opinionated about that, about writing clearly, and
+about avoiding tool pitfalls that lose work or hide failures, but not
+about anything else. You can opt into additional memory categories that
+make it more opinionated, for example about code development practices.
 
 ## How current LLMs do and don't remember things
 
@@ -60,8 +59,12 @@ doesn't apply— but they need different fixes.
 - **Seed memories** — a small starter corpus of universal meta-rules:
   synthesis-check-before-memory-write, no-push-without-explicit-request,
   attribution requirements, scrub-paths-from-global-memories, recipe-bearing
-  index summaries, hook script factoring, narration discipline. These are
-  the failure modes that show up consistently across users.
+  index summaries, hook script factoring, narration discipline, repo-local
+  scratch directories. These are the failure modes that show up
+  consistently across users. A seed marked `core: true` in its
+  frontmatter is read in full at every session start and after every
+  compaction; `hooks/pre-compact.sh` asks the compaction summary to name
+  the other memories to read.
 
 - **Opt-in memories** — These try to address a wider range of common
   failure modes of Claude Code.
@@ -79,14 +82,14 @@ doesn't apply— but they need different fixes.
   flags the paragraphs of Markdown, reStructuredText, and source
   comments that an edit has left badly wrapped, and ignores untouched
   text. With `--fix`, it rewraps them. With `--all`, it checks whole
-  files instead, whether git tracks them or not. `install.sh` does not
-  install it; put it on your `PATH` if you want it.
+  files instead, whether git tracks them or not. `install.sh` installs
+  it as `~/.claude/rewrap-check`.
 
 - **`bin/long-sentences`** — for the agent to run on prose that it has
   written, such as a commit message or the comments that a diff adds.
   It flags sentences that might need attention: long ones, ones with a
-  long run without punctuation, and ones with two semicolons. Like
-  `rewrap-check`, it is not installed by `install.sh`.
+  long run without punctuation, and ones with two semicolons.
+  `install.sh` installs it as `~/.claude/long-sentences`.
 
 ## Memories vs skills
 
@@ -192,8 +195,7 @@ A few principles guide what's in this project:
    only universal failure modes. Anything that doesn't meet that criterion
    is opt-in.
 3. **Batteries included.** If you do want to opt into more opinionated
-   memories about code development practices, more reliable ways to use the
-   shell and `git`, etc., those are included.
+   memories about code development practices, those are included.
 4. **Friction reduction on the path from noticing to memory-update.** When
    a generalizable issue surfaces mid-session, the default response should
    be to update or synthesize a memory rather than narrate the observation
