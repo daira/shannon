@@ -131,9 +131,9 @@ LONG='A paragraph that an edit has made much too long for a width of forty colum
     [[ "$output" == *"tool3:2-2:"* ]]
 }
 
-@test "a file without an extension and without a python shebang is not read" {
-    edit tool $'#!/bin/sh\n# short\n' \
-        $'#!/bin/sh\n# A comment that an edit has made much too long for forty columns.\n'
+@test "a file without an extension and without a supported shebang is not read" {
+    edit tool $'#!/usr/bin/env perl\n# short\n' \
+        $'#!/usr/bin/env perl\n# A comment that an edit has made much too long for forty columns.\n'
     run "$SCRIPT" --width 40 tool
     [ "$status" -eq 0 ]
     [ -z "$output" ]
@@ -292,4 +292,40 @@ LONG='A paragraph that an edit has made much too long for a width of forty colum
     [ "$status" -eq 0 ]
     [ "$(head -n 1 a.py)" = '#!/usr/bin/env python3' ]
     [ "$(awk 'NR == 2' a.py)" = '# A paragraph that an edit has made much' ]
+}
+
+@test "an edited # comment is flagged in each shell extension" {
+    local ext
+    for ext in sh bash zsh bats; do
+        edit "a.$ext" $'# short\nx=1\n' "# $LONG"$'\nx=1\n'
+        run "$SCRIPT" --width 40 "a.$ext"
+        [ "$status" -eq 1 ]
+        [[ "$output" == *"a.$ext:1-1:"* ]]
+    done
+}
+
+@test "a heredoc's body is not taken for comments" {
+    edit a.sh $'x\n' $'cat <<\'EOF\'\n# '"$LONG"$'\nEOF\ncat <<-END\n\t# '"$LONG"$'\n\tEND\n# '"$LONG"$'\n'
+    run "$SCRIPT" --width 40 a.sh
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"a.sh:2: line exceeds 40 cols"* ]]
+    [[ "$output" == *"a.sh:5: line exceeds 40 cols"* ]]
+    [[ "$output" == *"a.sh:7-7:"* ]]
+    [[ "$output" != *"a.sh:2-2:"* ]]
+    [[ "$output" != *"a.sh:5-5:"* ]]
+}
+
+@test "a single-quoted string spanning lines is not taken for a comment" {
+    edit a.sh $'x\n' $'x=\'\n# '"$LONG"$'\n\'\n'
+    run "$SCRIPT" --width 40 a.sh
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"a.sh:2: line exceeds 40 cols"* ]]
+    [[ "$output" != *"a.sh:2-2:"* ]]
+}
+
+@test "a file without an extension is read as shell when its shebang names a shell" {
+    edit tool $'#!/bin/bash\n# short\n' $'#!/bin/bash\n# '"$LONG"$'\n'
+    run "$SCRIPT" --width 40 tool
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"tool:2-2:"* ]]
 }

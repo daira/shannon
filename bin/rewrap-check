@@ -38,11 +38,14 @@ File types (by extension)
   .rs                          full-line //, ///, //! comments
   .c .h .cc .cpp .cxx .hh .hpp .hxx .java .js .mjs .cjs .jsx .go .swift .kt .kts
                                full-line //, ///, //! comments, as for .rs
+  .sh .bash .zsh .bats         full-line # comments, skipping heredoc bodies; a file
+                               without an extension counts as .sh if its first line
+                               is a shebang naming sh, bash, or zsh
   .lean                        full-line -- comments, and the paragraphs of /-- … -/
                                docstrings and /-! … -/ module docs (the opener stays
                                on the first line and the closer on the last)
   Source comments are reflowed with their marker + indent preserved. The scanning
-  of the C family, Rust, and Lean tracks string literals (including character
+  of the C family, Rust, Lean, and shell tracks string literals (including character
   literals, the backtick strings of JavaScript and Go, and the triple-quoted strings
   of Swift and Kotlin) and block comments, nested where the language nests them,
   so a // or -- inside a string or /* … */ // /- … -/ is never mistaken for a
@@ -96,6 +99,7 @@ CODE_LANGS = {
     ".go": "go",
     ".swift": "swift",
     ".kt": "kotlin", ".kts": "kotlin",
+    ".sh": "shell", ".bash": "shell", ".zsh": "shell", ".bats": "shell",
 }
 
 
@@ -154,16 +158,20 @@ def changed_files(sel: list[str]) -> list[str]:
 
 
 PY_SHEBANG = re.compile(r"^#!.*\bpython[\d.]*(\s|$)")
+SH_SHEBANG = re.compile(r"^#!.*\b(ba|z)?sh(\s|$)")
 
 
 def source_ext(mode: str, root: str, path: str) -> str:
-    """The file's extension, lower-cased; or ".py" for a file without one whose first line is a
-    Python shebang, such as an executable script."""
+    """The file's extension, lower-cased; or, for a file without one, such as an executable script,
+    ".py" or ".sh" if its first line is a Python or a shell shebang."""
     ext = os.path.splitext(path)[1].lower()
     if ext == "":
         text = file_text(mode, root, path)
-        if text is not None and PY_SHEBANG.match(text.split("\n", 1)[0]):
+        first = text.split("\n", 1)[0] if text is not None else ""
+        if PY_SHEBANG.match(first):
             return ".py"
+        if SH_SHEBANG.match(first):
+            return ".sh"
     return ext
 
 
@@ -469,7 +477,13 @@ LANG_CFG = {
     "go": dict(C_FAMILY, bnest=False, strings=['"', "'", "`"], raw_strings=["`"]),
     "swift": dict(C_FAMILY, bnest=True, strings=['"""', '"']),
     "kotlin": dict(C_FAMILY, bnest=True, strings=['"""', '"', "'"], raw_strings=['"""']),
+    # Shell has no block comments; `heredocs` makes the scanner skip heredoc bodies.
+    "shell": dict(line=["#"], bopen="", bclose="", bnest=False, strings=['"', "'"],
+                  raw_strings=["'"], rust_raw=False, docopen=[], heredocs=True),
 }
+
+# A heredoc's operator, its optional quoting of the delimiter, and the delimiter itself.
+HEREDOC = re.compile(r"<<(-?)[ \t]*\\?(['\"]?)([A-Za-z_][A-Za-z0-9_]*)\2")
 
 DOC_NONPROSE = re.compile(r"^(\s|[-*+]\s|\d+[.)]\s|[|#]|```)")
 
@@ -539,6 +553,7 @@ def collect_code_comments(lines: list[str], cfg: dict) -> list[Para]:
     docs: list[Para] = []
     depth = 0
     in_str = None  # (closer, raw)
+    heredocs: list[tuple[str, bool]] = []  # (delimiter, whether leading tabs are stripped)
     li = -1
     while li + 1 < len(lines):
         li += 1
@@ -575,7 +590,14 @@ def collect_code_comments(lines: list[str], cfg: dict) -> list[Para]:
                     col += 1
                 continue
             # code context
-            if line.startswith(cfg["bopen"], col):
+            if (cfg.get("heredocs") and line.startswith("<<", col)
+                    and not line.startswith("<<<", col)):
+                m = HEREDOC.match(line, col)
+                if m:
+                    heredocs.append((m.group(3), m.group(1) == "-"))
+                    col = m.end()
+                    continue
+            if cfg["bopen"] and line.startswith(cfg["bopen"], col):
                 depth += 1
                 col += len(cfg["bopen"])
                 continue
@@ -605,6 +627,13 @@ def collect_code_comments(lines: list[str], cfg: dict) -> list[Para]:
                 col += len(sd)
                 continue
             col += 1
+        # Skip the bodies of the heredocs that the line opened, each down to its terminator.
+        for delim, dash in heredocs:
+            while li + 1 < len(lines):
+                li += 1
+                if (lines[li].lstrip("\t") if dash else lines[li]) == delim:
+                    break
+        heredocs = []
         # strings/block comments persist across newlines (in_str, depth kept)
     return sorted(group_comment_marks(marks, lines) + docs, key=lambda p: p.start)
 

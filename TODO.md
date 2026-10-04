@@ -31,7 +31,7 @@ Tracking list for Shannon work. Entries are brief; details for any item live in 
 
 ## Utility scripts
 
-- [x] Extend `rewrap-check`'s language support to Swift, Kotlin, Go, Sage, C, C++, Java, and JavaScript. It reads the `//` comments of the C family with the scanner that it uses for Rust, and Sage files as Python.
+- [x] Extend `rewrap-check`'s language support to Swift, Kotlin, Go, Sage, C, C++, Java, JavaScript, and shell. It reads the `//` comments of the C family, and the `#` comments of shell scripts, with the scanner that it uses for Rust; for shell, the scanner skips heredoc bodies. It reads Sage files as Python.
 - [ ] Extend it to LaTeX and HTML. They are prose formats, each with its own markup to keep whole.
 
 ## Installer
