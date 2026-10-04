@@ -69,7 +69,7 @@ Already written: `feedback_ambient_credentials`, `feedback_commit_coauthor`, `fe
 ## README placeholders
 
 - [x] Resolve `<owner>` in the quick-start `git clone` URL once canonical home is decided.
-- [ ] Fill in the "How current LLMs do and don't remember things" TBD section — background on context vs memory-files, context limits, what compaction is, why compaction can be lossy, the role of the harness.
+- [ ] Fill in the "How current LLMs do and don't remember things" TBD section — background on context vs memory files, context limits, what compaction is, why compaction can be lossy, the role of the harness.
 - [ ] Fill in the "Opt-in memories" TBD (depends on the opt-in mechanism above).
 - [ ] Decide whether to split a `docs/design-principles.md` out of the README when length crosses a threshold.
 
