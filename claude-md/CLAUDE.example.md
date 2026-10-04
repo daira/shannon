@@ -4,7 +4,7 @@ These rules are loaded by Claude Code into every session's context (via the `CLA
 
 ## Synthesis check before memory-file writes
 
-Before writing or editing a memory-file under `~/.claude/memory/` or `~/.claude/projects/<slug>/memory/`, scan the `MEMORY.md` index for an existing memory that the new content could fit better in. If a close-fit host exists, fold into it rather than creating a sibling memory-file. See `feedback_rich_memory_summaries.md` §3 for the synthesis rule. Shannon's `check-memory-synthesis.sh` hook injects this reminder mechanically at edit time when installed; the rule is the imperative regardless of whether the hook fires.
+Before writing or editing a memory-file under `~/.claude/memory/` or `~/.claude/projects/<slug>/memory/`, scan the `MEMORY.md` index for an existing memory that the new content could fit better in. If a close-fit host exists, fold into it rather than creating a sibling memory-file. See the *Look for an existing home first* section of `feedback_rich_memory_summaries.md` for the synthesis rule. Shannon's `check-memory-synthesis.sh` hook injects this reminder mechanically at edit time when installed; the rule is the imperative regardless of whether the hook fires.
 
 ## Do not push without an explicit request
 

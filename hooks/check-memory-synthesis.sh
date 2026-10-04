@@ -69,7 +69,7 @@ case "$file_path" in
         jq -n '{
             hookSpecificOutput: {
                 hookEventName: "PreToolUse",
-                additionalContext: "Synthesis check before this project-scoped-memory write or edit:\n  1. Project-scope check: is this content genuinely *project-specific*? If the lesson would apply across other projects or codebases, it belongs in `~/.claude/memory/` (global) instead. Check whether a closely-related global memory already exists before deciding.\n  2. Synthesis check: scan this project'\''s MEMORY.md for any existing memory this content (whether a new file or an addition) could fit better in, per `feedback_rich_memory_summaries.md` §3. Cite the closest existing memories you checked, or explicitly note that none fit, before proceeding."
+                additionalContext: "Synthesis check before this project-scoped-memory write or edit:\n  1. Project-scope check: is this content genuinely *project-specific*? If the lesson would apply across other projects or codebases, it belongs in `~/.claude/memory/` (global) instead. Check whether a closely-related global memory already exists before deciding.\n  2. Synthesis check: scan this project'\''s MEMORY.md for any existing memory this content (whether a new file or an addition) could fit better in, per the *Look for an existing home first* section of `feedback_rich_memory_summaries.md`. Cite the closest existing memories you checked, or explicitly note that none fit, before proceeding."
             }
         }' 2>/dev/null
         ;;
@@ -82,7 +82,7 @@ case "$file_path" in
         jq -n '{
             hookSpecificOutput: {
                 hookEventName: "PreToolUse",
-                additionalContext: "Synthesis check before this memory-file write or edit: scan MEMORY.md for any existing memory that this content (whether a whole new file or an addition to this one) could fit better in, per `feedback_rich_memory_summaries.md` §3. The question is the same for Write (is there a better host memory than a new file?) and for Edit (is the addition really at home in *this* memory, or does it belong elsewhere?). Cite the closest existing memories you checked, or explicitly note that none fit, before proceeding. For global memories under `~/.claude/memory/`, also confirm sanitization per `feedback_external_reports.md` — strip user / project / path identifiers."
+                additionalContext: "Synthesis check before this memory-file write or edit: scan MEMORY.md for any existing memory that this content (whether a whole new file or an addition to this one) could fit better in, per the *Look for an existing home first* section of `feedback_rich_memory_summaries.md`. The question is the same for Write (is there a better host memory than a new file?) and for Edit (is the addition really at home in *this* memory, or does it belong elsewhere?). Cite the closest existing memories you checked, or explicitly note that none fit, before proceeding. For global memories under `~/.claude/memory/`, also confirm sanitization per `feedback_external_reports.md` — strip user / project / path identifiers."
             }
         }' 2>/dev/null
         ;;
