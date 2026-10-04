@@ -29,6 +29,10 @@ Tracking list for Shannon work. Entries are brief; details for any item live in 
 - [ ] Update `check-tmp-path.sh` to check whether `work` and `keep` are already gitignored rather than suggesting that the agent check.
 - [ ] Alternative to `check-portable-commands.sh` worth evaluating: override the PATH seen by the Claude Code process so that the preferred implementations are found under the native names (a `gnubin`-style directory of symlinks, prepended for the `claude` process only, not for the user's shell). Transparent, no denies to recover from, and it covers tools the table does not list. Costs: on macOS the per-command shell initialization (`path_helper` in login shells) can reorder PATH; a literal `PATH` in `settings.json`'s `env` is brittle; and scripts the agent runs would then see different tools from the user's own shell and from CI, a "works for the agent, fails for me" class of confusion. The hook was chosen for now because it keeps the agent's environment identical to the user's.
 
+## Utility scripts
+
+- [ ] Extend `rewrap-check`'s language support to Swift, Kotlin, Go, Sage, C, C++, Java, JavaScript, LaTeX, and HTML. It now covers Markdown and plain text, reStructuredText, and the comments of Rust, Python, and Lean. Most of these have `//` and `/* … */` comments, as Rust does, and Sage has Python's syntax; LaTeX and HTML are prose formats, each with its own markup to keep whole.
+
 ## Installer
 
 - [x] Fill in `install.sh`. Implements `--copy` (default) and `--link` modes plus `--dry-run`. Non-destructive: existing files are skipped, never overwritten (unless `--force` — see below). The maintainer's setup of pre-symlinked files is correctly recognised as already-installed (every `install_file` reports "skip (exists)").
