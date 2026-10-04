@@ -239,3 +239,48 @@ LONG='A paragraph that an edit has made much too long for a width of forty colum
     [ "$status" -eq 0 ]
     [ -z "$output" ]
 }
+
+@test "an edited // comment is flagged in each C-family language" {
+    local ext
+    for ext in c h cc cpp cxx hh hpp hxx java js mjs cjs jsx go swift kt kts; do
+        edit "a.$ext" $'// short\nx\n' "// $LONG"$'\nx\n'
+        run "$SCRIPT" --width 40 "a.$ext"
+        [ "$status" -eq 1 ]
+        [[ "$output" == *"a.$ext:1-1:"* ]]
+    done
+}
+
+@test "an edited # comment is flagged in a Sage file" {
+    edit a.sage $'# short\nx = 1\n' "# $LONG"$'\nx = 1\n'
+    run "$SCRIPT" --width 40 a.sage
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"a.sage:1-1:"* ]]
+}
+
+@test "a // line inside a string or a nested block comment is not taken for a comment" {
+    edit a.go $'x\n' $'s := `\n// '"$LONG"$'\n`\n'
+    edit a.js $'x\n' $'s = `\n// '"$LONG"$'\n`;\n'
+    edit a.swift $'x\n' $'let s = """\n// '"$LONG"$'\n"""\n'
+    edit a.kt $'x\n' $'/* outer /* inner */\n// '"$LONG"$'\n*/\n'
+    local f
+    for f in a.go a.js a.swift a.kt; do
+        run "$SCRIPT" --width 40 "$f"
+        [ "$status" -eq 1 ]
+        [[ "$output" == *"$f:2: line exceeds 40 cols"* ]]
+        [[ "$output" != *"$f:2-2:"* ]]
+    done
+}
+
+@test "a block comment does not nest in C, so a // line after one is a comment" {
+    edit a.c $'x\n' $'/* outer /* inner */\n// '"$LONG"$'\n'
+    run "$SCRIPT" --width 40 a.c
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"a.c:2-2:"* ]]
+}
+
+@test "a C++ digit separator does not open a character literal" {
+    edit a.cpp $'x\n' $'int n = 1\'000;\n// '"$LONG"$'\n'
+    run "$SCRIPT" --width 40 a.cpp
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"a.cpp:2-2:"* ]]
+}

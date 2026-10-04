@@ -34,13 +34,19 @@ File types (by extension)
                                quotes stay on the first and last words); a file
                                without an extension counts as .py if its first line
                                is a python shebang
+  .sage                        as .py, since Sage's syntax is Python's
   .rs                          full-line //, ///, //! comments
+  .c .h .cc .cpp .cxx .hh .hpp .hxx .java .js .mjs .cjs .jsx .go .swift .kt .kts
+                               full-line //, ///, //! comments, as for .rs
   .lean                        full-line -- comments, and the paragraphs of /-- … -/
                                docstrings and /-! … -/ module docs (the opener stays
                                on the first line and the closer on the last)
-  Source comments are reflowed with their marker + indent preserved. Rust/Lean
-  scanning tracks string literals and nested block comments, so a // or -- inside
-  a string or /* … */ // /- … -/ is never mistaken for a reflowable comment.
+  Source comments are reflowed with their marker + indent preserved. The scanning
+  of the C family, Rust, and Lean tracks string literals (including character
+  literals, the backtick strings of JavaScript and Go, and the triple-quoted strings
+  of Swift and Kotlin) and block comments, nested where the language nests them,
+  so a // or -- inside a string or /* … */ // /- … -/ is never mistaken for a
+  reflowable comment. C++ and Swift raw strings are not recognized.
   Other block comments (/* */, /- -/) and other Python strings are NOT reflowed yet.
 
 Over-width lines
@@ -79,7 +85,18 @@ import unicodedata
 
 PROSE_EXTS = {".md", ".markdown", ".mkd", ".mdown", ".txt", ".text"}
 RST_EXTS = {".rst"}
-CODE_LANGS = {".py": "python", ".rs": "rust", ".lean": "lean"}
+CODE_LANGS = {
+    ".py": "python", ".sage": "python",
+    ".rs": "rust",
+    ".lean": "lean",
+    ".c": "c", ".h": "c",
+    ".cc": "c", ".cpp": "c", ".cxx": "c", ".hh": "c", ".hpp": "c", ".hxx": "c",
+    ".java": "java",
+    ".js": "javascript", ".mjs": "javascript", ".cjs": "javascript", ".jsx": "javascript",
+    ".go": "go",
+    ".swift": "swift",
+    ".kt": "kotlin", ".kts": "kotlin",
+}
 
 
 # --------------------------------------------------------------------------- #
@@ -436,11 +453,21 @@ def collect_python(text: str, lines: list[str]) -> list[Para]:
                   key=lambda p: p.start)
 
 
+# The C family's comments: `//` lines, including `///` and `//!` doc lines, and `/* … */` blocks.
+# `raw_strings` lists the string delimiters inside which a backslash escapes nothing.
+C_FAMILY = dict(line=["///", "//!", "//"], bopen="/*", bclose="*/", rust_raw=False, docopen=[])
+
 LANG_CFG = {
     "rust": dict(line=["///", "//!", "//"], bopen="/*", bclose="*/", bnest=True,
                  strings=['"'], rust_raw=True, docopen=[]),
     "lean": dict(line=["--"], bopen="/-", bclose="-/", bnest=True,
                  strings=['"'], rust_raw=False, docopen=["/--", "/-!"]),
+    "c": dict(C_FAMILY, bnest=False, strings=['"', "'"]),
+    "java": dict(C_FAMILY, bnest=False, strings=['"', "'"]),
+    "javascript": dict(C_FAMILY, bnest=False, strings=['"', "'", "`"]),
+    "go": dict(C_FAMILY, bnest=False, strings=['"', "'", "`"], raw_strings=["`"]),
+    "swift": dict(C_FAMILY, bnest=True, strings=['"""', '"']),
+    "kotlin": dict(C_FAMILY, bnest=True, strings=['"""', '"', "'"], raw_strings=['"""']),
 }
 
 DOC_NONPROSE = re.compile(r"^(\s|[-*+]\s|\d+[.)]\s|[|#]|```)")
@@ -567,8 +594,12 @@ def collect_code_comments(lines: list[str], cfg: dict) -> list[Para]:
                     col = k + 1
                     continue
             sd = next((s for s in cfg["strings"] if line.startswith(s, col)), None)
+            # A quote straight after a word character does not open a character literal: it is,
+            # for example, a C++ digit separator, as in 1'000.
+            if sd == "'" and col > 0 and (line[col - 1].isalnum() or line[col - 1] == "_"):
+                sd = None
             if sd:
-                in_str = (sd, False)
+                in_str = (sd, sd in cfg.get("raw_strings", ()))
                 col += len(sd)
                 continue
             col += 1
