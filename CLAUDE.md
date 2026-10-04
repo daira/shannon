@@ -151,9 +151,10 @@ shannon/
   `feedback_repo_scratch_dirs.md`'s body; `docs/testing.md`'s per-case test
   tables are cross-referenced from `TODO.md`'s Tests section. The
   body-and-`MEMORY.md`-summary relationship for all memory files is
-  treated as implicit cross-reference (see
-  `feedback_rich_memory_summaries.md` §4); no per-file `See also:`
-  comment is needed for that case.
+  treated as implicit cross-reference (see the
+  *Write summaries that carry the recipe* section of
+  `feedback_rich_memory_summaries.md`); no per-file `See also:` comment
+  is needed for that case.
 - **Task bodies are short pointers; durable design content goes in `docs/`.**
   The harness's default task-list view shows task subjects only, so design
   notes, test plans, scope expansions, and other content the user will want
