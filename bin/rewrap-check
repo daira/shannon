@@ -445,7 +445,8 @@ def collect_python(text: str, lines: list[str]) -> list[Para]:
             li = tok.start[0] - 1
             line = lines[li]
             fns = len(line) - len(line.lstrip())
-            if tok.start[1] == fns:     # full-line comment only (skip trailing)
+            # A full-line comment only (skip trailing ones), and never a shebang.
+            if tok.start[1] == fns and not (li == 0 and line.startswith("#!")):
                 marks[li] = (line[:fns], "#", line[fns + 1:])
     except (tokenize.TokenError, IndentationError, SyntaxError, ValueError):
         pass
@@ -580,7 +581,8 @@ def collect_code_comments(lines: list[str], cfg: dict) -> list[Para]:
                 continue
             marker = next((m for m in cfg["line"] if line.startswith(m, col)), None)
             if marker:
-                if col == fns:          # full-line comment
+                # A full-line comment, but never a shebang.
+                if col == fns and not (li == 0 and line.startswith("#!")):
                     marks[li] = (line[:fns], marker, line[fns + len(marker):])
                 break                   # rest of the line is a comment
             if cfg["rust_raw"] and (line.startswith('r"', col) or line.startswith("r#", col)):

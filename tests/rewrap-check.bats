@@ -284,3 +284,12 @@ LONG='A paragraph that an edit has made much too long for a width of forty colum
     [ "$status" -eq 1 ]
     [[ "$output" == *"a.cpp:2-2:"* ]]
 }
+
+@test "--fix never joins a shebang to the comment below it" {
+    edit a.py $'#!/usr/bin/env python3\n# short\nx = 1\n' \
+        $'#!/usr/bin/env python3\n# '"$LONG"$'\nx = 1\n'
+    run "$SCRIPT" --width 40 --fix a.py
+    [ "$status" -eq 0 ]
+    [ "$(head -n 1 a.py)" = '#!/usr/bin/env python3' ]
+    [ "$(awk 'NR == 2' a.py)" = '# A paragraph that an edit has made much' ]
+}
