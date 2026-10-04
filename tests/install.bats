@@ -43,6 +43,9 @@ setup() {
     [ ! -L "$CLAUDE_DIR/$HOOK" ]
     cmp -s "$SHANNON_DIR/hooks/$HOOK" "$CLAUDE_DIR/$HOOK"
     [ -f "$CLAUDE_DIR/jsonl-to-md.py" ]
+    cmp -s "$SHANNON_DIR/bin/rewrap-check" "$CLAUDE_DIR/rewrap-check"
+    cmp -s "$SHANNON_DIR/bin/long-sentences" "$CLAUDE_DIR/long-sentences"
+    [ -x "$CLAUDE_DIR/long-sentences" ]
     cmp -s "$SHANNON_DIR/memory-seed/$SEED" "$CLAUDE_DIR/memory/$SEED"
     cmp -s "$SHANNON_DIR/claude-md/CLAUDE.example.md" "$CLAUDE_DIR/CLAUDE.md"
     cmp -s "$SHANNON_DIR/hooks/settings.json.snippet" "$CLAUDE_DIR/settings.json"
@@ -56,6 +59,8 @@ setup() {
     [ "$status" -eq 0 ]
     [ -L "$CLAUDE_DIR/$HOOK" ]
     [ "$(readlink "$CLAUDE_DIR/$HOOK")" = "$SHANNON_DIR/hooks/$HOOK" ]
+    [ "$(readlink "$CLAUDE_DIR/rewrap-check")" = "$SHANNON_DIR/bin/rewrap-check" ]
+    [ "$(readlink "$CLAUDE_DIR/long-sentences")" = "$SHANNON_DIR/bin/long-sentences" ]
     [ "$(readlink "$CLAUDE_DIR/memory/$SEED")" = "$SHANNON_DIR/memory-seed/$SEED" ]
     [ "$(readlink "$CLAUDE_DIR/CLAUDE.md")" = "$SHANNON_DIR/claude-md/CLAUDE.example.md" ]
     [[ "$output" == *"installed (link): $CLAUDE_DIR/$HOOK -> $SHANNON_DIR/hooks/$HOOK"* ]]

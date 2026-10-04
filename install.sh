@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# install.sh — install Shannon's hooks, seed memories, and `CLAUDE.md`
-# template into the user's `~/.claude/` directory.
+# install.sh — install Shannon's hooks, utility scripts, seed memories, and
+# `CLAUDE.md` template into the user's `~/.claude/` directory.
 #
 # See the Usage string below for details, and the post-install
 # message at the end of this script for activation specifics.
@@ -15,8 +15,8 @@ usage() {
     cat <<'EOF'
 Usage: ./install.sh [--copy | --link] [--force] [--dry-run]
 
-Install Shannon's hooks, seed memories, and CLAUDE.md template into
-~/.claude/.
+Install Shannon's hooks, utility scripts, seed memories, and CLAUDE.md
+template into ~/.claude/.
 
 Shannon can be installed in two modes:
 
@@ -150,6 +150,13 @@ install_file() {
 # Hook scripts: hooks/<name> → ~/.claude/<name>
 for script in "$SHANNON_DIR/hooks"/*.sh "$SHANNON_DIR/hooks"/jsonl-to-md.py; do
     [ -e "$script" ] || continue
+    install_file "$script" "$CLAUDE_DIR/$(basename "$script")"
+done
+
+# Utility scripts: bin/<name> → ~/.claude/<name>. ~/.claude is usually not on the PATH, so the
+# seeds that use them give that path.
+for script in "$SHANNON_DIR/bin"/*; do
+    [ -f "$script" ] || continue
     install_file "$script" "$CLAUDE_DIR/$(basename "$script")"
 done
 
