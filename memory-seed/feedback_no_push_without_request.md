@@ -14,7 +14,9 @@ After a `git commit` or `git commit --amend`, stop. Do not push, force-push, ope
 - an earlier "commit and push", which covered that commit and not the ones after it;
 - silence about pushing.
 
-When in doubt, ask. One question costs less than the churn of an unwanted force-push, a broken link in a published description, or work in progress made public. Report the result as, for example, "Committed locally as `8917cce`; say when you want it pushed", not "Pushed".
+A standing instruction to push after each commit counts only if the user gave it in this session, and you have confirmed it with them.
+
+When in doubt, ask. One question costs less than the churn of an unwanted force-push, a broken link in a published description, or work in progress made public. Before reporting, build or render what the change affects, such as the tests or a rendered document, so that the user can review it. Report the result as, for example, "Committed locally as `8917cce`; say when you want it pushed", not "Pushed".
 
 ## On a security-fix branch, default to never pushing
 
