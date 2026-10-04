@@ -1,5 +1,5 @@
 ---
-name: Don't push without an explicit request, and never during a security fix — commit, then let the user review
+name: Don't push without an explicit request, and by default never during a security fix — commit, then let the user review
 description: After a commit or an amend, stop. Do not push, force-push, open a pull request, or otherwise publish unless the user's most recent instruction names that step ("push", "commit and push", "force-push"). "Commit", "amend", "fold in", or "let me see how it looks" do not authorize a push, and an earlier "commit and push" covered that commit only. Report the commit and let the user review it locally. On a security-fix branch, the default policy should be never to push or publish at all: even a branch name or CI activity can tip off attackers. If in doubt whether a branch is security-sensitive, ask before any network action that involves the repository.
 core: true
 type: feedback
