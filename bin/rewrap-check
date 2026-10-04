@@ -71,6 +71,7 @@ import difflib
 import io
 import os
 import re
+import string
 import subprocess
 import sys
 import tokenize
@@ -191,6 +192,20 @@ INDENTCODE = re.compile(r"^\s{4,}\S")
 HTMLBLOCK = re.compile(r"^\s{0,3}<[A-Za-z/!]")
 BLANK = re.compile(r"^\s*$")
 INTERRUPTING_ITEM = re.compile(r"^\s{0,3}([-*+]|1[.)])\s+\S")
+FENCE_OPEN = re.compile(r"^ {0,3}(`{3,}|~{3,})(.*)$")
+
+
+def fence_end(lines: list[str], i: int) -> int | None:
+    """If `lines[i]` opens a fenced code block, the index of the line that closes it, or
+    `len(lines)` if none does; otherwise None. As in CommonMark, the closing fence uses the same
+    character as the opening one, is at least as long, and has nothing after it but spaces, and a
+    backtick fence's info string cannot contain a backtick."""
+    m = FENCE_OPEN.match(lines[i])
+    if not m or (m.group(1)[0] == "`" and "`" in m.group(2)):
+        return None
+    run = m.group(1)
+    close = re.compile(r"^ {0,3}%s{%d,}[ \t]*$" % (re.escape(run[0]), len(run)))
+    return next((j for j in range(i + 1, len(lines)) if close.match(lines[j])), len(lines))
 
 
 def interrupts_paragraph(line: str) -> bool:
@@ -215,13 +230,9 @@ def collect_markdown(lines: list[str]) -> list[Para]:
         if BLANK.match(lines[i]):
             i += 1
             continue
-        fm = FENCE.match(lines[i])
-        if fm:
-            fence = re.escape(fm.group(1)[0])
-            j = i + 1
-            while j < n and not re.match(rf"^\s{{0,3}}{fence}{{3,}}\s*$", lines[j]):
-                j += 1
-            i = j + 1
+        end = fence_end(lines, i)
+        if end is not None:
+            i = end + 1
             continue
         # A plain paragraph ends at a setext underline, which makes it a heading, or before a
         # line that interrupts it, which starts the next block. A list or a block quote runs to
@@ -573,14 +584,10 @@ def table_lines(ext: str, lines: list[str]) -> set[int]:
     if ext in (".md", ".markdown"):
         i = 0
         while i < n:
-            fm = FENCE.match(lines[i])
-            if fm:
-                fence = re.escape(fm.group(1)[0])
-                j = i + 1
-                while j < n and not re.match(rf"^\s{{0,3}}{fence}{{3,}}\s*$", lines[j]):
-                    j += 1
-                exempt.update(range(i + 1, min(j, n - 1) + 2))
-                i = j + 1
+            end = fence_end(lines, i)
+            if end is not None:
+                exempt.update(range(i + 1, min(end, n - 1) + 2))
+                i = end + 1
                 continue
             if BLANK.match(lines[i]):
                 i += 1
@@ -696,10 +703,49 @@ def norm(lines: list[str]) -> list[str]:
     return [ln.rstrip() for ln in lines]
 
 
+# The characters that a backslash escapes in CommonMark: ASCII punctuation.
+ESCAPABLE = frozenset(string.punctuation)
+
+
+def find_run(text: str, start: int, length: int) -> int | None:
+    """The index of the first run of exactly `length` backticks in `text` at or after `start`."""
+    m = re.compile(r"(?<!`)`{%d}(?!`)" % length).search(text, start)
+    return m.start() if m else None
+
+
+def outside_code(line: str) -> str:
+    """The text of `line` outside its complete inline code spans, without its backslash escapes.
+    As in CommonMark, the line is scanned from the left. A backslash escapes the punctuation
+    character after it, except inside a code span, where it is literal. A run of backticks opens a
+    span only if a later run of the same length closes it; an unmatched run is kept."""
+    out: list[str] = []
+    i, n = 0, len(line)
+    while i < n:
+        if line[i] == "\\" and i + 1 < n and line[i + 1] in ESCAPABLE:
+            i += 2
+        elif line[i] == "`":
+            k = i
+            while k < n and line[k] == "`":
+                k += 1
+            length = k - i
+            close = find_run(line, k, length)
+            if close is None:
+                out.append(line[i:k])
+                i = k
+            else:
+                i = close + length
+        else:
+            out.append(line[i])
+            i += 1
+    return "".join(out)
+
+
 def split_span(line: str) -> bool:
-    """Does the line end inside an inline code or math span (an odd number of backticks or
-    dollar signs)? Such a split is always worth repairing."""
-    return line.count("`") % 2 == 1 or line.count("$") % 2 == 1
+    """Does the line end inside an inline code or math span? It does if, outside its complete code
+    spans and its backslash escapes, any backtick remains, or an odd number of dollar signs. Such a
+    split is always worth repairing."""
+    bare = outside_code(line)
+    return "`" in bare or bare.count("$") % 2 == 1
 
 
 def needs_rewrap(p: Para, ideal: list[str], width: int, slack: int) -> str | None:

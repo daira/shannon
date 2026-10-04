@@ -197,3 +197,45 @@ LONG='A paragraph that an edit has made much too long for a width of forty colum
     [ "$status" -eq 1 ]
     [[ "$output" == *"cannot read missing.md"* ]]
 }
+
+@test "a dollar sign inside a code span is not taken for a split math span" {
+    edit a.md $'x\n' $'Run `kill $(pgrep x)` to stop it\nnow, and check.\n'
+    run "$SCRIPT" --width 40 a.md
+    [ "$status" -eq 0 ]
+    [ -z "$output" ]
+}
+
+@test "a code span split across lines is still flagged" {
+    edit a.md $'x\n' $'Run `kill $(pgrep\nx)` to stop it now.\n'
+    run "$SCRIPT" --width 40 a.md
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"a code or math span is split across lines"* ]]
+}
+
+@test "a double-backtick span split across lines is flagged" {
+    edit a.md $'x\n' $'Run ``kill -TERM\npid`` to stop it now.\n'
+    run "$SCRIPT" --width 40 a.md
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"a code or math span is split across lines"* ]]
+}
+
+@test "an escaped backtick does not open a code span" {
+    edit a.md $'x\n' $'Run \\`kill -TERM` to stop it all\nnow, and check.\n'
+    run "$SCRIPT" --width 40 a.md
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"a code or math span is split across lines"* ]]
+}
+
+@test "a backslash inside a code span does not escape its closing backtick" {
+    edit a.md $'x\n' $'Run `C:\\` for the job to stop it\nnow, and check.\n'
+    run "$SCRIPT" --width 40 a.md
+    [ "$status" -eq 0 ]
+    [ -z "$output" ]
+}
+
+@test "a shorter fence inside a longer fence does not close it" {
+    edit a.md $'x\n' $'````\n```\n'"$LONG"$'\n````\n'
+    run "$SCRIPT" --width 40 a.md
+    [ "$status" -eq 0 ]
+    [ -z "$output" ]
+}
