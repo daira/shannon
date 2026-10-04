@@ -1,6 +1,7 @@
 ---
 name: Check a dependency's own licence before building on it — at the file level, against the destination's licence and contribution clause
 description: Before taking a dependency of any kind, read the artifact's own licence, in its header, its LICENSE file, or its manifest, not a containing repository's claim about it. Dependencies include packages, vendored files, ports, translations, and generated derivatives of someone's code, and copied snippets that do not fall under fair use. Check that licence against the destination's licence and its contribution clause. A derivative keeps the source's licence. Unless the licences are the same or the source is more permissive, raise it before starting work. Licence compatibility is complicated, and even a compatible combination can be an unwelcome hurdle. Record the check where the dependency is introduced.
+core: true
 type: feedback
 ---
 

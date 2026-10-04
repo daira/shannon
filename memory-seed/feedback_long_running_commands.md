@@ -1,6 +1,7 @@
 ---
 name: Long-running commands — tee to a log, keep the exit status, tell the user the path, and never trust a build that overlapped edits
 description: Run any command that may take a while, or whose output the user may want to inspect, as `(set -o pipefail && <cmd> 2>&1 | tee work/<name>.log | tail -50)`. The log keeps the full output, `pipefail` keeps the command's own exit status, and the subshell scopes the option. When the command runs in the background, tell the user the log's path. Judge success from the log's own success line, not from a chained `echo $?`. How safely two builds can share one output tree depends on the build system. Cargo's locking is robust. Other build systems (e.g. Makefile-based, Lean's lake) allow corruption, races, or deadlocks, and should therefore be serialized. Alternating between two checkouts or worktrees, kept rather than recreated, hides build latency. Disregard a build that overlapped with editing, and do not interrupt a long build for a cosmetic edit. Before calling a build stuck, rule out a slow step and a machine that slept.
+core: true
 type: feedback
 ---
 

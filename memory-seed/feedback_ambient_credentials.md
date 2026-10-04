@@ -1,6 +1,7 @@
 ---
 name: Use ambient credentials only with the user's consent for a stated scope, and never work around a withheld one
 description: Use credentials that happen to be available in the environment (`gh`, cloud CLIs, tokens) only with the user's consent for a stated scope. A standing permission belongs in the user's own memories. After a 404 from a private-looking GitHub page, offer to retry with `gh api` rather than doing it. Never work around a credential that the user's environment withholds.
+core: true
 type: feedback
 ---
 
