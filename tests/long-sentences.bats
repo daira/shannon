@@ -154,3 +154,18 @@ $(words 40)
     run "$SCRIPT" <<< "**A lead, $(words 20) end.** Then, $(words 20) end. _Another, $(words 20) end._ Last."
     [ "$status" -eq 0 ]
 }
+
+@test "a Markdown table is skipped" {
+    run "$SCRIPT" <<< "Text.
+
+| Build system | Two builds on one output tree |
+| --- | --- |
+| cargo | $(words 20) |
+| make | $(words 20) |"
+    [ "$status" -eq 0 ]
+}
+
+@test "prose that contains a pipe is still checked" {
+    run "$SCRIPT" <<< "Prose with a | pipe, $(words 20), $(words 20) end."
+    [ "$status" -eq 1 ]
+}
