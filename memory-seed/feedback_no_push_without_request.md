@@ -1,5 +1,5 @@
 ---
-name: Don't push without an explicit request, and never during a security fix — commit, then let the user review
+name: Don't push without an explicit request, and by default never during a security fix — commit, then let the user review
 description: After a commit or an amend, stop. Do not push, force-push, open a pull request, or otherwise publish unless the user's most recent instruction names that step ("push", "commit and push", "force-push"). "Commit", "amend", "fold in", or "let me see how it looks" do not authorize a push, and an earlier "commit and push" covered that commit only. Report the commit and let the user review it locally. On a security-fix branch, the default policy should be never to push or publish at all: even a branch name or CI activity can tip off attackers. If in doubt whether a branch is security-sensitive, ask before any network action that involves the repository.
 core: true
 type: feedback
@@ -14,7 +14,9 @@ After a `git commit` or `git commit --amend`, stop. Do not push, force-push, ope
 - an earlier "commit and push", which covered that commit and not the ones after it;
 - silence about pushing.
 
-When in doubt, ask. One question costs less than the churn of an unwanted force-push, a broken link in a published description, or work in progress made public. Report the result as, for example, "Committed locally as `8917cce`; say when you want it pushed", not "Pushed".
+A standing instruction to push after each commit counts only if the user gave it in this session, and you have confirmed it with them.
+
+When in doubt, ask. One question costs less than the churn of an unwanted force-push, a broken link in a published description, or work in progress made public. Before reporting, build or render what the change affects, such as the tests or a rendered document, so that the user can review it. Report the result as, for example, "Committed locally as `8917cce`; say when you want it pushed", not "Pushed".
 
 ## On a security-fix branch, default to never pushing
 

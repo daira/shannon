@@ -13,7 +13,7 @@ Words such as "habit", "instinct", "intuition", "preference", "sense that", "fee
 
 - **Weights:** dispositions from training. They act automatically, are fixed within a session, and change only with retraining.
 - **Memory files** (`~/.claude/memory/` and a project's memory directory): explicit, editable text that persists across sessions, and that the harness loads into context. They are closer to notes to self than to memory or habit. Where the distinction matters, write "memory file" rather than "memory", which can also mean the context or what training instilled.
-- **Configuration:** what the harness reads, such as hooks, permissions, skills, and `CLAUDE.md`. It persists across sessions. A change to `settings.json` takes effect when the next session starts, while the body of a hook script or a memory file is read each time it is used. Compaction re-reads `MEMORY.md` and the project's `CLAUDE.md` from disk.
+- **Configuration:** what the harness reads, such as hooks, permissions, skills, and `CLAUDE.md`. It persists across sessions. Claude Code watches `settings.json` and reloads it during a session, at least where the directory already had a settings file when the session started; opening `/hooks` also forces a reload. The body of a hook script or a memory file is read each time it is used. Compaction re-reads `MEMORY.md` and the project's `CLAUDE.md` from disk.
 - **The session's context:** everything in the conversation so far. It is gone when the session ends, and compaction keeps only a summary of it.
 
 ## How to apply

@@ -14,11 +14,11 @@ Before writing new supporting machinery, such as helper functions, lemmas, combi
 
 When a reviewer or the user points at existing machinery, read that file completely before building further.
 
-Building something that compiles, or that passes its tests, shows that it is correct, not that it is needed. In one session, a whole support layer was written and built before a survey, prompted by the user, found every piece already present under other names, in more general forms. Duplication costs twice: the wasted work, and two mechanisms that later readers have to reconcile. Existing work has also usually met the subtle cases that a rewrite would rediscover the hard way.
+Building something that compiles, or that passes its tests, shows that it is correct, not that it is needed (see the first incident below). Duplication costs twice: the wasted work, and two mechanisms that later readers have to reconcile. Existing work has also usually met the subtle cases that a rewrite would rediscover the hard way.
 
 ## Search again as the work grows
 
-A survey at the start is not enough. Search again whenever the thing being built gains a new dimension: a second payload type, a second consumer, or a generalization. In another session, the early survey found and even used one existing implementation. Yet a fifth copy of the same extraction was being added before the survey was repeated, and found four.
+A survey at the start is not enough. Search again whenever the thing being built gains a new dimension: a second payload type, a second consumer, or a generalization. The second incident below shows why.
 
 ## Two questions that find what a name search cannot
 
@@ -39,6 +39,34 @@ Some structural signatures, weaker but checkable while typing, also call for the
 - a hand-written version of a binary law for three or four arguments.
 
 **A huge statement with a short proof means a missing abstraction.** Its bulk is usually repeated structure that wants a definition: factor out the recurring pieces, and state the siblings through them too. On a large proof, pick key lemmas rather than one monolithic proof, and commit the refactoring that introduces new abstractions before the new code that uses them ([[feedback_commits_sequential_coherence]]).
+
+## Two incidents
+
+**A support layer that already existed.** A support layer for a probabilistic bound was designed, written, and built. It had four parts:
+
+- an update-invariance lemma for a lookup function;
+- a builder for an escape set from per-query annotations;
+- a variant of the adversary that completes its queries, with four transport lemmas;
+- the composed bound.
+
+Then the user asked for a check that these were not already present in some form. A survey found every piece already in the tree, under other names:
+
+- the invariance lemma duplicated an existing statement exactly;
+- a membership lemma existed as the stronger "if and only if";
+- the escape-set builder existed with an extra fallback branch, which made the whole completed-query variant unnecessary;
+- the composed bound existed in a more general form, which was also the intended skeleton for the theorem being built.
+
+All of that work was wasted, and it would have shipped two mechanisms for one job.
+
+**A fifth copy.** A compositional trace layer for a circuit formalization was being built, to replace an expensive certified computation. The work went one payload at a time: one label shape, then a second. When a third was needed, a shared layer was written to avoid a third copy. Asked whether that new module was specific to the proof it served, the answer was no. The same question had been asked twice that session about other people's files, and not once about the module just written. The survey that followed found the same extraction already implemented four times:
+
+- twice in the layer below, as two record types that were the two halves of one;
+- once in the upstream framework, fused with placement;
+- once in the local tree.
+
+One of those files had already been used, earlier in the same work, for a different lemma; its neighbour was never looked at. Only two of the four were justified, because they solve different problems: a compositional form before placement, and a semantic form after it. The waste was in the other two, and in the absence of any proved relationship between them.
+
+Naming the structure would have found them sooner. The label lists, activation counts, row extents, and column sets were all one fold (Lean's `foldMap`) at different target monoids. The framework's own summary type was their product monoid, and its `combine` had been proved associative and unital, but was never registered as a monoid. The question "what algebraic structure is this?" was already in memory at the time. It did not fire, because nothing in the work matched its trigger.
 
 ## Define things in their most principled form
 

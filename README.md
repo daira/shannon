@@ -22,7 +22,7 @@ make it more opinionated, for example about code development practices.
 
 ## How current LLMs do and don't remember things
 
-TBD: brief background on context vs memory-files, context limits, what
+TBD: brief background on context vs memory files, context limits, what
 compaction is, why compacting can be so lossy, the role of the Claude Code
 harness, etc.
 
