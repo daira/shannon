@@ -27,9 +27,11 @@ import sys
 # Abbreviations after which a capital letter does not start a new sentence.
 ABBREVIATIONS = ("e.g.", "i.e.", "cf.", "vs.")
 
-# The end of a sentence: a full stop, question mark, or exclamation mark, then any closing quotes or
-# brackets, then whitespace, then something that can start a sentence.
-BOUNDARY = re.compile(r"([.!?][\"'”’)\]]*)\s+(?=[\"'“‘(]?[A-Z`#])")
+# The end of a sentence: a full stop, question mark, or exclamation mark, then any closing quotes,
+# brackets, or emphasis markers, then whitespace, then something that can start a sentence: a
+# capital letter, a code span, or a heading, after any opening quotes, brackets, or emphasis
+# markers.
+BOUNDARY = re.compile(r"([.!?][\"'”’)\]*_]*)\s+(?=[\"'“‘(\[*_]*[A-Z`#])")
 
 TRAILER = re.compile(r"^[A-Za-z][\w-]*: ")
 
