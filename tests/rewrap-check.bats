@@ -211,3 +211,24 @@ LONG='A paragraph that an edit has made much too long for a width of forty colum
     [ "$status" -eq 1 ]
     [[ "$output" == *"a code or math span is split across lines"* ]]
 }
+
+@test "a double-backtick span split across lines is flagged" {
+    edit a.md $'x\n' $'Run ``kill -TERM\npid`` to stop it now.\n'
+    run "$SCRIPT" --width 40 a.md
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"a code or math span is split across lines"* ]]
+}
+
+@test "an escaped backtick does not open a code span" {
+    edit a.md $'x\n' $'Run \\`kill -TERM` to stop it all\nnow, and check.\n'
+    run "$SCRIPT" --width 40 a.md
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"a code or math span is split across lines"* ]]
+}
+
+@test "a backslash inside a code span does not escape its closing backtick" {
+    edit a.md $'x\n' $'Run `C:\\` for the job to stop it\nnow, and check.\n'
+    run "$SCRIPT" --width 40 a.md
+    [ "$status" -eq 0 ]
+    [ -z "$output" ]
+}

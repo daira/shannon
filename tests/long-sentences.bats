@@ -114,3 +114,13 @@ Co-authored-by: Someone"
     [ "$(grep -c 'words:' <<< "$output")" -eq 1 ]
     [[ "$output" == *"Start,"* ]]
 }
+
+@test "an unmatched double backtick does not open a code span" {
+    run "$SCRIPT" <<< "Start, \`\`a $(words 26)\` end."
+    [ "$status" -eq 1 ]
+}
+
+@test "an escaped backtick does not open a code span" {
+    run "$SCRIPT" <<< "Start, \\\`a $(words 26)\` end."
+    [ "$status" -eq 1 ]
+}

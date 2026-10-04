@@ -21,6 +21,7 @@ Subject-verb distance is not measured: read each flagged sentence, and every sen
 
 import argparse
 import re
+import string
 import sys
 
 # Abbreviations after which a capital letter does not start a new sentence.
@@ -31,6 +32,9 @@ ABBREVIATIONS = ("e.g.", "i.e.", "cf.", "vs.")
 BOUNDARY = re.compile(r"([.!?][\"'”’)\]]*)\s+(?=[\"'“‘(]?[A-Z`#])")
 
 TRAILER = re.compile(r"^[A-Za-z][\w-]*: ")
+
+# The characters that a backslash escapes in CommonMark: ASCII punctuation.
+ESCAPABLE = frozenset(string.punctuation)
 
 
 def prose_from_diff(text):
@@ -65,11 +69,44 @@ def sentences(flat):
     yield flat[start:]
 
 
+def find_run(text, start, length):
+    """The index of the first run of exactly `length` backticks at or after `start`, or None if
+    there is none before the next blank line."""
+    m = re.compile(r"(?P<blank>\n[ \t]*\n)|(?<!`)`{%d}(?!`)" % length).search(text, start)
+    return m.start() if m and not m.group("blank") else None
+
+
+def code_as_words(text):
+    """`text` with each complete inline code span replaced by the word CODE. As in CommonMark, the
+    text is scanned from the left. A backslash escapes the punctuation character after it, except
+    inside a code span, so an escaped backtick does not open one. A run of backticks opens a span
+    only if a later run of the same length closes it, before any blank line."""
+    out = []
+    i, n = 0, len(text)
+    while i < n:
+        if text[i] == "\\" and i + 1 < n and text[i + 1] in ESCAPABLE:
+            out.append(text[i:i + 2])
+            i += 2
+        elif text[i] == "`":
+            k = i
+            while k < n and text[k] == "`":
+                k += 1
+            length = k - i
+            close = find_run(text, k, length)
+            if close is None:
+                out.append(text[i:k])
+                i = k
+            else:
+                out.append("CODE")
+                i = close + length
+        else:
+            out.append(text[i])
+            i += 1
+    return "".join(out)
+
+
 def check(text, max_words, max_run):
-    text = without_fences(text)
-    # A code span runs from a run of backticks to the next run of the same length. It may continue
-    # across a line break, but not across a blank line.
-    text = re.sub(r"(`+)(?:(?!\n[ \t]*\n)[\s\S])+?(?<!`)\1(?!`)", "CODE", text)
+    text = code_as_words(without_fences(text))
     paragraphs = [p for p in re.split(r"\n\s*\n", text) if p.strip()]
     if paragraphs and all(TRAILER.match(l.strip()) for l in paragraphs[-1].splitlines()):
         paragraphs.pop()
