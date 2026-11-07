@@ -6,6 +6,15 @@ type: feedback
 
 These rules hold wherever a project publishes: a forge such as GitHub or GitLab, a mailing list, or the project's own website. GitHub serves as the example below.
 
+## Trigger: any `gh … --body` or `--body-file`, and any `gh api` with a body
+
+Before every `gh issue create`, `gh issue edit`, `gh issue comment`, `gh pr create`, `gh pr edit`, `gh pr comment` or `gh pr review` that passes `--body` or `--body-file`, and before every `gh api -X POST`, `PUT` or `PATCH` that passes a `body` field (`-f body=…` or `-F body=@file`), do two things, in the same command as the post where possible:
+
+1. **Reflow the body** from the hard-wrapped draft: join each paragraph, and each bullet with its continuation lines, onto one line; keep blank lines, headings and list markers; leave fenced code blocks alone. A draft kept under `keep/` stays hard-wrapped; the reflowed copy goes under `work/`.
+2. **For an edit, fetch the live text and compare it with the posted copy first**, wired with `&&` (below).
+
+The rule failed to fire twice in one session (2026-10-27) when it was keyed only on the judgement "format a body for where it is shown": an issue was created hard-wrapped, and then edited from a stale copy, which overwrote the user's edits. The command is the trigger, not the judgement. It failed again on 2026-11-04 when the trigger named only the `gh issue` and `gh pr` subcommands: a pull request review, whose body is edited only through `gh api -X PUT repos/O/R/pulls/N/reviews/ID`, was updated from the local copy minutes after the user had changed its first sentence in the browser. The API form is a trigger too, which is why it is listed above.
+
 ## Pull and merge requests
 
 - **Draft until reviewed.** Open a request as a draft (on GitHub, `gh pr create --draft`) unless the user has already reviewed the exact content, or asks for it to be opened ready. Marking a request ready tells maintainers, and any reviewers that trigger on ready requests, that it has been reviewed. So that call belongs to the user.
@@ -39,4 +48,11 @@ Quote the right-hand side of `[[ … = … ]]`, which otherwise matches as a pat
 
 **The recorded editor does not tell you whose edit it was.** An agent's writes through an API use the user's credentials, so the site records the user as the editor of both. GitHub also records edit events whose text did not change. Only the text, compared with your posted copy, shows what changed.
 
-**Recovery.** If an overwrite has already happened, a site may keep the earlier revisions. On GitHub, the GraphQL `userContentEdits` connection on a comment, issue, or PR returns them, most recent first. Its `diff` field holds the full text of each revision. Find the user's revision, merge your change into it, and post that.
+**Recovery.** If an overwrite has already happened, a site may keep the earlier revisions. On GitHub, the GraphQL `userContentEdits` connection on a comment, issue, or PR returns them, most recent first. Its `diff` field holds the full text of each revision, and the oldest entry is the creation. Find the user's revision, merge your change into it, and post that. This worked on 2026-10-27:
+
+```bash
+gh api graphql -f query='query { repository(owner:"O", name:"R") { issue(number:N) {
+  userContentEdits(first:20) { nodes { editedAt editor { login } diff } } } } }' > edits.json
+```
+
+Save each `diff` to a file (strip `\r`), `diff -u` consecutive revisions to see each edit, and note that every revision shows the user as `editor`, including the agent's own. A review's revisions sit on its own node: `pullRequest(number:N) { reviews(last:5) { nodes { databaseId userContentEdits(first:20) { nodes { editedAt diff } } } } }`, selected by the `databaseId` that the REST API reports; this recovered an overwritten review sentence on 2026-11-04.
