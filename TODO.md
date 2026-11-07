@@ -33,7 +33,9 @@ Tracking list for Shannon work. Entries are brief; details for any item live in 
 ## Utility scripts
 
 - [x] Extend `rewrap-check`'s language support to Swift, Kotlin, Go, Sage, C, C++, Java, JavaScript, and shell. It reads the `//` comments of the C family, and the `#` comments of shell scripts, with the scanner that it uses for Rust; for shell, the scanner skips heredoc bodies. It reads Sage files as Python.
+- [ ] Make `rewrap-check` handle wrapping of lists correctly.
 - [ ] Extend it to LaTeX and HTML. They are prose formats, each with its own markup to keep whole.
+- [ ] Improve `long-sentences` for Markdown documents, such as specifications with footnotes and math. It merges a sentence that ends before a footnote marker (`... the end. [^ref] Here ...`) with the next one, counts each blockquote `>` marker as a word, counts a `$...$` math span as several words although a code span counts as one, and reads footnote definitions and an indented preamble as prose. With `--diff` it reads only line comments, so it skips the lines that a diff adds to a Markdown file. It also gives no line numbers, which makes a report on a whole document hard to act on.
 
 ## Installer
 
