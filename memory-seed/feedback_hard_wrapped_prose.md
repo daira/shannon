@@ -1,6 +1,6 @@
 ---
 name: Keep hard-wrapped prose wrapped — rewrap edited paragraphs with rewrap-check, and never split a code span, link, or URL across lines
-description: When an edit leaves a line of a hard-wrapped paragraph more than about 10 columns longer or shorter than its neighbours, rewrap the paragraph to the file's established width. Leave it when the difference is small, or when an unbreakable span (inline code or math, a link, a URL) makes the line long. Before each commit, run `~/.claude/rewrap-check --width N <paths>` on the changed files; `--fix` rewraps only the edited paragraphs, and `--all` checks whole files, including untracked drafts such as a commit message. Read the diff of whatever `--fix` changed. Measure width in characters, not bytes. Where text is rendered as Markdown, an inline code span or a link opens and closes on the same line. A URL is never broken or trimmed to fit a width.
+description: When an edit leaves a line of a hard-wrapped paragraph more than about 10 columns longer or shorter than its neighbours, rewrap the paragraph to the file's established width. Leave it when the difference is small, or when an unbreakable span (inline code or math, a link, a URL) makes the line long. Before each commit, run `~/.claude/rewrap-check --width N <paths>` on the changed files; `--fix` rewraps only the edited paragraphs, and `--all` checks whole files, including untracked drafts such as a commit message, which is saved as `.md` so that the script reads it. Read the diff of whatever `--fix` changed. Measure width in characters, not bytes. Where text is rendered as Markdown, an inline code span or a link opens and closes on the same line. A URL is never broken or trimmed to fit a width.
 type: feedback
 ---
 
@@ -23,7 +23,7 @@ This applies to every way of editing, not only to the editor tool. A scripted su
 
 - `~/.claude/rewrap-check --width N <files>` checks the uncommitted edits; `--commit REF` compares with another commit, and `--staged` checks the index.
 - `--fix` rewraps the flagged paragraphs in place. It exits 0 unless the run fails, and prints a note for each over-width line that it cannot reflow. `--show` and `--diff` print the rewrap instead.
-- `--all` treats every line of the named files as edited, and reads files that git does not track. Use it for a whole new file, or for a draft outside the repository's history, such as a commit message under `work/`.
+- `--all` treats every line of the named files as edited, and reads files that git does not track. Use it for a whole new file, or for a draft outside the repository's history, such as a commit message under `work/`. Name such a draft `.md`, so that the script reads it: it skips an extension that it does not know, such as `.msg` (the user, 2026-10-18: "writing commit message files as .md is probably easiest").
 
 It reads Markdown and plain text, reStructuredText, and the comments of Rust, Python, and Lean, including Python and Lean docstrings and Python scripts that have no extension. It keeps inline code, math, and links whole, and reports a code span split across lines. It also reports any changed line that is too wide, except in tables and fenced code blocks. Pass it file paths, not directories.
 
