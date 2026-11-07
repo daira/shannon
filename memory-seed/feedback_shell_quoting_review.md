@@ -1,6 +1,7 @@
 ---
-name: Review shell scripts and heredoc bodies for quoting
-description: Review shell scripts for quoting before committing: run shellcheck, then check each expansion. Where one language is nested in another (a script in a heredoc of another script, Makefile recipes, GitHub Actions `${{ }}` expressions, m4, `bash -c` strings), list the layers that the code passes through and check its quoting at each. In a quoted heredoc (`<<'EOF'`), write backticks and `$` bare; a backslash becomes literal. Chain steps with `&&`, run a pipeline whose status matters as `(set -o pipefail && …)`, wire a check that gates a mutation to it with `&&` (`check; mutate` mutates regardless), and give a conclusion drawn from empty output a positive control.
+name: Quote every heredoc that carries prose, and review shell scripts and nested layers for quoting
+description: Any heredoc in a tool command whose body is prose, such as working notes, a commit message, a PR body, or a review draft, gets a quoted terminator (`<<'EOF'`), in which backticks and `$` are written bare and a backslash becomes literal. An unquoted heredoc runs every backtick span and `$(…)` in the body as a command: one that appended working notes ran the `jj git push` and `lake build` commands quoted in them. A value to compute, such as the time, goes in a variable before the heredoc and is printed outside the body; or the prose goes through the Write or Edit tool, which no shell sees. Review shell scripts for quoting before committing: run shellcheck, then check each expansion. Where one language is nested in another (a script in a heredoc of another script, Makefile recipes, GitHub Actions `${{ }}` expressions, m4, `bash -c` strings), list the layers that the code passes through and check its quoting at each. Chain steps with `&&`, run a pipeline whose status matters as `(set -o pipefail && …)`, wire a check that gates a mutation to it with `&&` (`check; mutate` mutates regardless), and give a conclusion drawn from empty output a positive control.
+core: true
 type: feedback
 ---
 
@@ -44,12 +45,28 @@ quoted heredoc, `env:` in a workflow, or `-f file` for awk and jq.
 
 ## Heredocs: quoted or not
 
-A quoted heredoc (`<<'EOF'` or `<<"EOF"`) passes its body through literally, so backticks, `$VAR`,
-and `$(cmd)` are written bare: a backslash before them appears in the output. An unquoted one
-(`<<EOF`) expands them first, so escape any that should appear literally. The habit of escaping
+Quote the terminator of every heredoc whose body is prose: working notes, a commit message, a PR or
+issue body, a review draft, or any text with code spans. The trigger is the heredoc itself, in any
+tool command, not only a script that will be committed. A quoted heredoc (`<<'EOF'` or `<<"EOF"`)
+passes its body through literally, so backticks, `$VAR`, and `$(cmd)` are written bare: a backslash
+before them appears in the output. An unquoted one (`<<EOF`) expands them first, so each backtick
+span and `$(…)` in the body runs as a command, and its output replaces the span. An unquoted heredoc
+that appended a session's working notes once ran the `jj git push …` and `lake build …` commands
+quoted in the notes; the push failed only because the shell had no key. The habit of escaping
 backticks, right in an unquoted heredoc or a double-quoted string, tends to fire inside `<<'EOF'`
-too, and leaves `\`foo\`` in a commit message or rendered Markdown. Prefer `<<'EOF'` for prose that
-contains code, which then cannot run a command substitution by accident.
+too, and leaves `\`foo\`` in a commit message or rendered Markdown.
+
+A value that must be computed, such as the time of a note, goes in a variable before the heredoc
+and is printed outside the body:
+
+```bash
+now=$(date -u +%H:%M) && printf -- '- %s UTC: ' "$now" >> keep/notes.md && cat >> keep/notes.md <<'EOF'
+the note, with `code spans` and $(…) written bare
+EOF
+```
+
+Or the prose goes through the Write or Edit tool, which no shell sees, with the time taken from a
+separate `date` call ([[feedback_use_date_not_guess]]).
 
 ## Apostrophes inside single-quoted arguments
 
