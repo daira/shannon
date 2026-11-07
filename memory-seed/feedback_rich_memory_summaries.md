@@ -13,6 +13,8 @@ Write under `~/.claude/memory/` unless a rule only makes sense in one project, a
 
 Before creating a memory, scan `MEMORY.md` for one that the rule belongs in: the same topic from another angle, a precondition or consequence of an existing rule, or a complementary rule. If one fits, fold the guidance in, updating the body and the summary; when it is close, prefer folding. An obvious corollary needs no memory, and neither does a rule whose body would be shorter than its frontmatter.
 
+A home is one project. Never put another project's task or state into a project memory, not even as a pointer to "the next task": a task set at the end of a session on one project gets its own memory, however small (the user, 2026-11-04, on a review request that had been appended to an unrelated project's memory).
+
 ## Write summaries that carry the recipe
 
 `MEMORY.md` is always in context, but a memory's body only once it is read. So write each summary to be enough for the common case:
