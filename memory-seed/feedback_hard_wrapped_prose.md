@@ -27,6 +27,8 @@ This applies to every way of editing, not only to the editor tool. A scripted su
 
 It reads Markdown and plain text, reStructuredText, and the comments of Rust, Python, and Lean, including Python and Lean docstrings and Python scripts that have no extension. It keeps inline code, math, and links whole, and reports a code span split across lines. It also reports any changed line that is too wide, except in tables and fenced code blocks. Pass it file paths, not directories.
 
+The installed copy follows the main branch of the checkout that `install.sh` ran from, and a fix may sit on an unmerged branch in another checkout of the same repository. So when it misbehaves, compare `git -C <checkout> log -1 -- bin/rewrap-check` across the checkouts, and run the newest one. Do not pass `--ext` for a type it already reads, such as `.lean`: older copies then read the whole file as prose and flag every code line.
+
 Run it on the changed files before each commit, and read its report. **Read what `--fix` changed** before committing. It can join a line that was broken on purpose, or split a span that it did not recognize, so look at each rewrapped paragraph in `git diff`.
 
 ## Inline spans, links, and URLs stay whole
