@@ -20,6 +20,8 @@ Write `git add path/to/a path/to/b`, never `git add .`, `-A`, a directory, or a 
 
 Check each file's own diff (`git diff <file>`) before adding it whole: an earlier edit that was interrupted, still unstaged in the same file, would ride along into an unrelated commit. To undo a wrong add, unstage with `git reset HEAD -- <path>`; never fix it by committing.
 
+In a jj checkout there is no staging: every file that is not ignored is snapshotted into the open change, so read `jj st` before each `jj commit`, and run `patch` with `--no-backup-if-mismatch`, since its `.orig` backups otherwise land in the commit. A stray that was committed is removed by deleting it in the working copy and `jj squash --into <change> -- <path>` ([[feedback_jj_workflow]]).
+
 ## Rewriting history
 
 Before a branch-sensitive operation (a rebase, an amend, a cherry-pick, `reset --hard`, `clean`, or `checkout <ref> -- <file>`), check the current branch with `git branch --show-current`, or put the `git checkout <branch>` at the head of the same command. The branch persists between commands, and `git rebase --onto A B branch` leaves you on `branch`. Check that the working tree is clean too, and stash first if it is not. Afterwards, check the commit count, and compare trees where the change should have left them alone.
