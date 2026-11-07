@@ -65,3 +65,4 @@ Behind the textual tests is a simpler one. If a reader saying the sentence aloud
 - A sentence that opens with a preposition and a bare "it" ("Over it, the event …") reads badly. Repeat a short noun phrase instead ("Over that space, the event …").
 - **A commit message gives what changed, and the one operative reason.** Cut secondary justifications, which dilute the first. Cut the story of how a mistake arose, and caveats about scope that the diff already shows.
 - Concision is about density, not omission: keep everything load-bearing, and say it in shorter units. Cut throat-clearing and restatement; a doc comment says what the thing is, then the key facts.
+- **Rewrap hard-wrapped prose after editing it,** back to the paragraph's previous natural break, and read the diff's added lines for a short line mid-paragraph or an over-width line ([[feedback_hard_wrapped_prose]]).

@@ -10,6 +10,8 @@ Many files are wrapped by hand: specifications, READMEs, design documents, commi
 
 After an edit, rewrap the paragraph if any of its lines ends up more than about 10 columns longer or shorter than the others. Match the width that the file already uses, which varies between files, rather than imposing another; commit messages are usually wrapped at 72. The last line of a paragraph may be short.
 
+Rewrap the whole paragraph, back to the natural break before the edit, not only the lines that the edit touched: a reflow that starts at the edited line leaves the lines above it ragged against the new ones (a user asked for one reflow to start two lines earlier than the edit). Then read the diff's added lines for a short line in the middle of a paragraph or a line over the file's width, which a reviewer of the diff sees at once.
+
 Leave the paragraph alone when:
 
 - the difference is small, under about 10 columns, since a smaller diff is easier to review;
