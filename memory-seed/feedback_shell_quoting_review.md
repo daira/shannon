@@ -66,7 +66,7 @@ EOF
 ```
 
 Or the prose goes through the Write or Edit tool, which no shell sees, with the time taken from a
-separate `date` call ([[feedback_use_date_not_guess]]).
+separate `date` call.
 
 ## Apostrophes inside single-quoted arguments
 

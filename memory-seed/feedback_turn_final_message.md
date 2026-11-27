@@ -12,4 +12,4 @@ The harness shows the user a short summary of any text written between tool call
 - When the user asks a question or requests an explanation while work is in progress, answer it in a message that ends the turn. Resume the work when they reply; a question is a natural pause point ([[feedback_pacing]]).
 - Put every substantive statement in a turn-ending message: answers, review findings, decisions taken, caveats, and anything the user is expected to act on. Do not bury them between tool calls.
 - Text between tool calls is for one-line progress notes ("rebuilding after the census fix"), which is all the user will see of it.
-- When a long piece of work ends, the final message must stand on its own, since the user did not see the interim text ([[feedback_post_digression_summary]]).
+- When a long piece of work ends, the final message must stand on its own, since the user did not see the interim text.
