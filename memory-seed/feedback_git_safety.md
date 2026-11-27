@@ -13,6 +13,7 @@ type: feedback
 - `git reset --hard` discards uncommitted changes, and commits that become unreachable. First check `git status`, `git log <upstream>..HEAD`, and `git rev-list --left-right --count HEAD...<upstream>`. To follow a force-pushed remote, prefer `git pull --rebase` or `git merge --ff-only`, which refuse rather than discard. After a mistake, the reflog still has the old commit, but only in that clone and for about 90 days.
 - `git stash drop stash@{N}` renumbers the later stashes, so dropping several by index can hit the wrong one. Check each by its ID first (`git rev-parse stash@{N}`); a dropped stash can be restored with `git stash store -m <message> <id>`.
 - `git checkout <ref> -- <file>` overwrites the file's uncommitted changes, so make sure of the branch first (see below).
+- `git branch -d` and `-D`, and a remote branch deletion, are never cleanup, and never a way to free a name, even for a branch that you created ([[feedback_destructive_deletions]]). Report the branch's tip, and let the user delete it.
 
 ## Stage files by name
 
