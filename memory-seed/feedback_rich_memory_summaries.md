@@ -1,6 +1,6 @@
 ---
-name: Authoring memories — default to global, look for an existing home, write recipe-bearing summaries and matchable triggers, keep memories (especially core ones) short, write down what you notice, match existing emphasis, and word memories generically
-description: "Write memories under `~/.claude/memory/` unless a rule only makes sense in one project. Before creating one, look for an existing memory that it belongs in. Make each `MEMORY.md` summary carry the recipe and the failure mode, since the summary is what stays in context. Give each memory a trigger that the context can match: a workflow moment, a syntactic signature, or a hook. Keep memories, and core ones especially, short. When you notice that something is memory-worthy, write it or ask; do not just say so. Give an addition the same emphasis as what is there. Write 'the user' and 'they/them', keeping names for the profile memory, quotes, and attributions."
+name: Authoring memories — default to global, look for an existing home, write recipe-bearing summaries and matchable triggers, keep memories (especially core ones) short, write down what you notice, decide at the first anomaly whether it will yield a memory and let that set the effort, match existing emphasis, and word memories generically
+description: "Write memories under `~/.claude/memory/` unless a rule only makes sense in one project. Before creating one, look for an existing memory that it belongs in. Make each `MEMORY.md` summary carry the recipe and the failure mode, since the summary is what stays in context. Give each memory a trigger that the context can match: a workflow moment, a syntactic signature, or a hook. Keep memories, and core ones especially, short. When you notice that something is memory-worthy, write it or ask; do not just say so. At the first anomaly, decide whether resolving it would create or correct a memory; if so, find the true cause rather than the first plausible one, since a plausible wrong cause misfires forever; if not, take the cheap workaround. Give an addition the same emphasis as what is there. Write 'the user' and 'they/them', keeping names for the profile memory, quotes, and attributions."
 core: true
 type: feedback
 ---
@@ -36,6 +36,22 @@ A trigger that is a judgement about the work as a whole ("when this turns into b
 ## Write it down when you notice it
 
 Conversation evaporates at compaction; only memory files persist. When you notice that something is memory-worthy ("worth noting", "a refinement to memory X"), write it now, or ask the user when the right memory or framing is unclear. Saying so without writing it is a deferral disguised as an observation, so treat the phrase as a commitment. Mechanisms keep this path short, not diligence ([[feedback_mechanism_over_intention]]): this memory, the synthesis-check hook, and the always-loaded `CLAUDE.md` template.
+
+## Decide early whether a puzzle will yield a memory, and let that set the effort
+
+The trigger is the decision, not the writing: at the first sign that something behaves against its
+model (a tactic that should be trivial times out, a tool does something its documentation does not
+predict), decide whether resolving it would create or correct a memory, which is to say whether it
+holds a generalizable lesson. That decision sets the effort. If yes, find the true cause rather than
+the first plausible one, and stop when the observations match the corrected model, because a memory
+that records a plausible but wrong cause misfires forever, while a corrected model of a tool pays
+off at every later use. If no, take the cheap workaround and move on. One user's own habit: "one
+of my common patterns of thought is to decide early whether something will hold a generalizable
+lesson, and spend more effort on it if I think it will. That very often pays off." Origin: in a
+Lean proof, the `exact h` tactic timed out although the goal and the hypothesis `h` printed
+identically with every pretty-printer option on; the first finding, a metadata annotation on the
+goal, was plausible and wrong, and two more measurements located the cause in Lean's application
+elaborator, which corrected the model of `exact` for the user and the agent alike.
 
 ## Match the existing emphasis when updating
 
