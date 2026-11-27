@@ -1,18 +1,29 @@
 ---
 name: Publishing — draft until reviewed, bodies formatted for where they are shown, and a fresh comparison before every edit
-description: These rules hold wherever a project publishes, whether on a forge such as GitHub or GitLab, or on its own website. Open a pull or merge request as a draft unless the user has reviewed its exact content or asked for it ready. Format a body for where it is shown. GitHub, for example, shows single newlines in descriptions and comments as line breaks, so join each hard-wrapped paragraph and bullet onto one line. Do not cite build job counts or the request's own commit SHAs in its description. Posted text can be edited by the user at any time. So edit it only when the user asks, keep a copy of everything that you post, and before each edit fetch the live text and compare it with that copy. Compare newline-robustly, after stripping carriage returns: `[[ "$(cat -- posted.md)" = "$(cat -- live.md)" ]]`. Treat any difference as the user's edit, which you surface or merge rather than overwrite. Wire the comparison to the edit with `&&`, never `;`.
+description: These rules hold wherever a project publishes, whether on a forge such as GitHub or GitLab, or on its own website. Open a pull or merge request as a draft unless the user has reviewed its exact content or asked for it ready. Format a body for where it is shown. GitHub, for example, shows single newlines in descriptions and comments as line breaks, so join each hard-wrapped paragraph and bullet onto one line; math in a body follows the rendering context's rules (on GitHub, a span with more than one underscore is written $`…`$). Do not cite build job counts or the request's own commit SHAs in its description. A request that lists commits already in its base has a stale base on GitHub: changing its base away and back fixes it. Posted text can be edited by the user at any time. So edit it only when the user asks, keep a copy of everything that you post, and before each edit fetch the live text and compare it with that copy. Compare newline-robustly, after stripping carriage returns: `[[ "$(cat -- posted.md)" = "$(cat -- live.md)" ]]`. Treat any difference as the user's edit, which you surface or merge rather than overwrite. Wire the comparison to the edit with `&&`, never `;`.
 type: feedback
 ---
 
 These rules hold wherever a project publishes: a forge such as GitHub or GitLab, a mailing list, or the project's own website. GitHub serves as the example below.
 
+## Trigger: any `gh … --body` or `--body-file`, and any `gh api` with a body
+
+Before every `gh issue create`, `gh issue edit`, `gh issue comment`, `gh pr create`, `gh pr edit`, `gh pr comment` or `gh pr review` that passes `--body` or `--body-file`, and before every `gh api -X POST`, `PUT` or `PATCH` that passes a `body` field (`-f body=…` or `-F body=@file`), do two things, in the same command as the post where possible:
+
+1. **Reflow the body** from the hard-wrapped draft: join each paragraph, and each bullet with its continuation lines, onto one line; keep blank lines, headings and list markers; leave fenced code blocks alone. A draft kept under `keep/` stays hard-wrapped; the reflowed copy goes under `work/`.
+2. **For an edit, fetch the live text and compare it with the posted copy first**, wired with `&&` (below).
+
+The rule failed to fire twice in one session (2026-10-27) when it was keyed only on the judgement "format a body for where it is shown": an issue was created hard-wrapped, and then edited from a stale copy, which overwrote the user's edits. The command is the trigger, not the judgement. It failed again on 2026-11-04 when the trigger named only the `gh issue` and `gh pr` subcommands: a pull request review, whose body is edited only through `gh api -X PUT repos/O/R/pulls/N/reviews/ID`, was updated from the local copy minutes after the user had changed its first sentence in the browser. The API form is a trigger too, which is why it is listed above.
+
 ## Pull and merge requests
 
 - **Draft until reviewed.** Open a request as a draft (on GitHub, `gh pr create --draft`) unless the user has already reviewed the exact content, or asks for it to be opened ready. Marking a request ready tells maintainers, and any reviewers that trigger on ready requests, that it has been reviewed. So that call belongs to the user.
 - **Format the body for where it is shown.** GitHub shows single newlines in PR descriptions, issues, and comments as line breaks, unlike in `.md` files. So a hard-wrapped body displays there with fixed breaks, which reads badly on a narrow screen. A draft kept for the user's review may be hard-wrapped. When posting it to such a place, join each paragraph, and each bullet with its continuation lines, onto a single line. Keep blank lines, headings, rules, and list markers, and leave fenced code blocks alone.
+- **Math in a body** follows the rendering context's rules. On GitHub, write an inline span that contains more than one underscore as $`…`$, the code-span form.
 - **No build job counts.** "Full build green (8569 jobs)" says nothing about the change, since the count is mostly dependencies. Say "full build green", or nothing where the request shows its CI status.
 - **No self-referential SHAs.** Do not cite the request's own commits by SHA in its description, as in a heading such as "Fix (`f41e6c2`)". A rebase or force-push makes the SHA stale, and the reviewer has the commit list anyway. Use descriptive headings instead. A pinned link to a commit in another repository is a different matter, and is fine.
 - **Attribution** for descriptions and comments: [[feedback_commit_coauthor]].
+- **A stale base.** GitHub can keep a request's base commit after the base branch moves, such as after the head is rebased onto a newer base, or the base branch is pushed. The request then lists commits that are already in its base, and its diff includes their changes. Check with the compare API (`gh api repos/O/R/compare/BASE...HEAD`), which uses the current branches. To fix it, change the request's base to another branch whose tip is already in the base, then back. That posts a visible event, so it is the user's call.
 
 ## Editing what is already posted
 
@@ -39,4 +50,21 @@ Quote the right-hand side of `[[ … = … ]]`, which otherwise matches as a pat
 
 **The recorded editor does not tell you whose edit it was.** An agent's writes through an API use the user's credentials, so the site records the user as the editor of both. GitHub also records edit events whose text did not change. Only the text, compared with your posted copy, shows what changed.
 
-**Recovery.** If an overwrite has already happened, a site may keep the earlier revisions. On GitHub, the GraphQL `userContentEdits` connection on a comment, issue, or PR returns them, most recent first. Its `diff` field holds the full text of each revision. Find the user's revision, merge your change into it, and post that.
+**Recovery.** If an overwrite has already happened, a site may keep the earlier revisions. On GitHub, the GraphQL `userContentEdits` connection on a comment, issue, or PR returns them, most recent first. Its `diff` field holds the full text of each revision, and the oldest entry is the creation. Find the user's revision, merge your change into it, and post that. This worked on 2026-10-27:
+
+```bash
+gh api graphql -f query='query { repository(owner:"O", name:"R") { issue(number:N) {
+  userContentEdits(first:20) { nodes { editedAt editor { login } diff } } } } }' > edits.json
+```
+
+Save each `diff` to a file (strip `\r`), `diff -u` consecutive revisions to see each edit, and note that every revision shows the user as `editor`, including the agent's own. A review's revisions sit on its own node: `pullRequest(number:N) { reviews(last:5) { nodes { databaseId userContentEdits(first:20) { nodes { editedAt diff } } } } }`, selected by the `databaseId` that the REST API reports; this recovered an overwritten review sentence on 2026-11-04.
+
+## Fetch the current activity before resuming or reporting on a tracked item
+
+The time between turns is invisible: a question asked hours after a post arrives with the same
+context as a question asked a minute after it. So before answering "is there anything more to do
+on X", before resuming work on a pull request, issue, or thread, and before saying that a reply
+is awaited, fetch its activity since the last known state (new comments, reviews, pushes, head
+SHA) and run `date -u` to see how much time has passed. Never answer from the state at the time of
+the last post. In one session, "nothing more until the author responds" was answered sixteen hours
+after the comment, when the author and a second reviewer had both already replied.

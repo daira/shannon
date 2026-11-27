@@ -29,7 +29,10 @@ Even when the project itself is public, the *fact* that the user was working on 
 
 **Tracked documents in a repository count too.** A design document, README, or plan committed to a
 repository, even the user's own, is read by collaborators and outlives the machine it was written
-on; it carries no local paths (`~/...`, `/Users/<name>/...`), usernames, or machine details. Say "a
+on; it carries no local paths (`~/...`, `/Users/<name>/...`), usernames, or machine details. A requirement that
+comes from one machine's setup, such as running a job on mains power because a laptop's power
+settings throttle it on battery, is a machine detail too: it stays in the working notes, and the
+tracked file says at most what is general (an idle machine; `caffeinate -i` on a MacBook). Say "a
 local clone exists" or name the upstream repository and revision instead. A plan file once named the
 clone's local path; the user flagged it under this rule. Working notes under the untracked `keep/`
 are the place for paths ([[feedback_repo_scratch_dirs]]).

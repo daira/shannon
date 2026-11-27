@@ -1,6 +1,6 @@
 ---
 name: Keep hard-wrapped prose wrapped — rewrap edited paragraphs with rewrap-check, and never split a code span, link, or URL across lines
-description: When an edit leaves a line of a hard-wrapped paragraph more than about 10 columns longer or shorter than its neighbours, rewrap the paragraph to the file's established width. Leave it when the difference is small, or when an unbreakable span (inline code or math, a link, a URL) makes the line long. Before each commit, run `~/.claude/rewrap-check --width N <paths>` on the changed files; `--fix` rewraps only the edited paragraphs, and `--all` checks whole files, including untracked drafts such as a commit message. Read the diff of whatever `--fix` changed. Measure width in characters, not bytes. Where text is rendered as Markdown, an inline code span or a link opens and closes on the same line. A URL is never broken or trimmed to fit a width.
+description: When an edit leaves a line of a hard-wrapped paragraph more than about 10 columns longer or shorter than its neighbours, rewrap the paragraph to the file's established width. Leave it when the difference is small, or when an unbreakable span (inline code or math, a link, a URL) makes the line long. Before each commit, run `~/.claude/rewrap-check --width N <paths>` on the changed files; `--fix` rewraps only the edited paragraphs, and `--all` checks whole files, including untracked drafts such as a commit message, which is saved as `.md` so that the script reads it. Read the diff of whatever `--fix` changed. Measure width in characters, not bytes. Where text is rendered as Markdown, an inline code span or a link opens and closes on the same line. A URL is never broken or trimmed to fit a width.
 type: feedback
 ---
 
@@ -9,6 +9,8 @@ Many files are wrapped by hand: specifications, READMEs, design documents, commi
 ## Rewrap an edited paragraph when its lines drift
 
 After an edit, rewrap the paragraph if any of its lines ends up more than about 10 columns longer or shorter than the others. Match the width that the file already uses, which varies between files, rather than imposing another; commit messages are usually wrapped at 72. The last line of a paragraph may be short.
+
+Rewrap the whole paragraph, back to the natural break before the edit, not only the lines that the edit touched: a reflow that starts at the edited line leaves the lines above it ragged against the new ones (a user asked for one reflow to start two lines earlier than the edit). Then read the diff's added lines for a short line in the middle of a paragraph or a line over the file's width, which a reviewer of the diff sees at once.
 
 Leave the paragraph alone when:
 
@@ -23,9 +25,11 @@ This applies to every way of editing, not only to the editor tool. A scripted su
 
 - `~/.claude/rewrap-check --width N <files>` checks the uncommitted edits; `--commit REF` compares with another commit, and `--staged` checks the index.
 - `--fix` rewraps the flagged paragraphs in place. It exits 0 unless the run fails, and prints a note for each over-width line that it cannot reflow. `--show` and `--diff` print the rewrap instead.
-- `--all` treats every line of the named files as edited, and reads files that git does not track. Use it for a whole new file, or for a draft outside the repository's history, such as a commit message under `work/`.
+- `--all` treats every line of the named files as edited, and reads files that git does not track. Use it for a whole new file, or for a draft outside the repository's history, such as a commit message under `work/`. Name such a draft `.md`, so that the script reads it: it skips an extension that it does not know, such as `.msg` (the user, 2026-10-18: "writing commit message files as .md is probably easiest").
 
 It reads Markdown and plain text, reStructuredText, and the comments of Rust, Python, and Lean, including Python and Lean docstrings and Python scripts that have no extension. It keeps inline code, math, and links whole, and reports a code span split across lines. It also reports any changed line that is too wide, except in tables and fenced code blocks. Pass it file paths, not directories.
+
+The installed copy follows the main branch of the checkout that `install.sh` ran from, and a fix may sit on an unmerged branch in another checkout of the same repository. So when it misbehaves, compare `git -C <checkout> log -1 -- bin/rewrap-check` across the checkouts, and run the newest one. Do not pass `--ext` for a type it already reads, such as `.lean`: older copies then read the whole file as prose and flag every code line.
 
 Run it on the changed files before each commit, and read its report. **Read what `--fix` changed** before committing. It can join a line that was broken on purpose, or split a span that it did not recognize, so look at each rewrapped paragraph in `git diff`.
 
