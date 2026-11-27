@@ -1,6 +1,6 @@
 ---
 name: Publishing — draft until reviewed, bodies formatted for where they are shown, and a fresh comparison before every edit
-description: These rules hold wherever a project publishes, whether on a forge such as GitHub or GitLab, or on its own website. Open a pull or merge request as a draft unless the user has reviewed its exact content or asked for it ready. Format a body for where it is shown. GitHub, for example, shows single newlines in descriptions and comments as line breaks, so join each hard-wrapped paragraph and bullet onto one line. Do not cite build job counts or the request's own commit SHAs in its description. A request that lists commits already in its base has a stale base on GitHub: changing its base away and back fixes it. Posted text can be edited by the user at any time. So edit it only when the user asks, keep a copy of everything that you post, and before each edit fetch the live text and compare it with that copy. Compare newline-robustly, after stripping carriage returns: `[[ "$(cat -- posted.md)" = "$(cat -- live.md)" ]]`. Treat any difference as the user's edit, which you surface or merge rather than overwrite. Wire the comparison to the edit with `&&`, never `;`.
+description: These rules hold wherever a project publishes, whether on a forge such as GitHub or GitLab, or on its own website. Open a pull or merge request as a draft unless the user has reviewed its exact content or asked for it ready. Format a body for where it is shown. GitHub, for example, shows single newlines in descriptions and comments as line breaks, so join each hard-wrapped paragraph and bullet onto one line; math in a body follows the rendering context's rules (on GitHub, a span with more than one underscore is written $`…`$). Do not cite build job counts or the request's own commit SHAs in its description. A request that lists commits already in its base has a stale base on GitHub: changing its base away and back fixes it. Posted text can be edited by the user at any time. So edit it only when the user asks, keep a copy of everything that you post, and before each edit fetch the live text and compare it with that copy. Compare newline-robustly, after stripping carriage returns: `[[ "$(cat -- posted.md)" = "$(cat -- live.md)" ]]`. Treat any difference as the user's edit, which you surface or merge rather than overwrite. Wire the comparison to the edit with `&&`, never `;`.
 type: feedback
 ---
 
@@ -19,6 +19,7 @@ The rule failed to fire twice in one session (2026-10-27) when it was keyed only
 
 - **Draft until reviewed.** Open a request as a draft (on GitHub, `gh pr create --draft`) unless the user has already reviewed the exact content, or asks for it to be opened ready. Marking a request ready tells maintainers, and any reviewers that trigger on ready requests, that it has been reviewed. So that call belongs to the user.
 - **Format the body for where it is shown.** GitHub shows single newlines in PR descriptions, issues, and comments as line breaks, unlike in `.md` files. So a hard-wrapped body displays there with fixed breaks, which reads badly on a narrow screen. A draft kept for the user's review may be hard-wrapped. When posting it to such a place, join each paragraph, and each bullet with its continuation lines, onto a single line. Keep blank lines, headings, rules, and list markers, and leave fenced code blocks alone.
+- **Math in a body** follows the rendering context's rules. On GitHub, write an inline span that contains more than one underscore as $`…`$, the code-span form.
 - **No build job counts.** "Full build green (8569 jobs)" says nothing about the change, since the count is mostly dependencies. Say "full build green", or nothing where the request shows its CI status.
 - **No self-referential SHAs.** Do not cite the request's own commits by SHA in its description, as in a heading such as "Fix (`f41e6c2`)". A rebase or force-push makes the SHA stale, and the reviewer has the commit list anyway. Use descriptive headings instead. A pinned link to a commit in another repository is a different matter, and is fine.
 - **Attribution** for descriptions and comments: [[feedback_commit_coauthor]].
@@ -57,3 +58,13 @@ gh api graphql -f query='query { repository(owner:"O", name:"R") { issue(number:
 ```
 
 Save each `diff` to a file (strip `\r`), `diff -u` consecutive revisions to see each edit, and note that every revision shows the user as `editor`, including the agent's own. A review's revisions sit on its own node: `pullRequest(number:N) { reviews(last:5) { nodes { databaseId userContentEdits(first:20) { nodes { editedAt diff } } } } }`, selected by the `databaseId` that the REST API reports; this recovered an overwritten review sentence on 2026-11-04.
+
+## Fetch the current activity before resuming or reporting on a tracked item
+
+The time between turns is invisible: a question asked hours after a post arrives with the same
+context as a question asked a minute after it. So before answering "is there anything more to do
+on X", before resuming work on a pull request, issue, or thread, and before saying that a reply
+is awaited, fetch its activity since the last known state (new comments, reviews, pushes, head
+SHA) and run `date -u` to see how much time has passed. Never answer from the state at the time of
+the last post. In one session, "nothing more until the author responds" was answered sixteen hours
+after the comment, when the author and a second reviewer had both already replied.
