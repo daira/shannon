@@ -1,6 +1,6 @@
 ---
 name: Long-running commands — tee to a log, keep the exit status, tell the user the path, and never trust a build that overlapped edits
-description: Run any command that may take a while, or whose output the user may want to inspect, as `(set -o pipefail && <cmd> 2>&1 | tee work/<name>.log | tail -50)`. The log keeps the full output, `pipefail` keeps the command's own exit status, and the subshell scopes the option. When the command runs in the background, tell the user the log's path. Judge success from the log's own success line, not from a chained `echo $?`. How safely two builds can share one output tree depends on the build system. Cargo's locking is robust. Other build systems (e.g. Makefile-based, Lean's lake) allow corruption, races, or deadlocks, and should therefore be serialized. Alternating between two checkouts or worktrees, kept rather than recreated, hides build latency. Disregard a build that overlapped with editing, and do not interrupt a long build for a cosmetic edit. When a build in a checkout is the user's next step, leave the checkout on the branch that the build needs and say which branch it is on. Before calling a build stuck, rule out a slow step and a machine that slept. Run benchmarks in the foreground with nothing else running, and on a laptop only on mains power. A backgrounded tool that reads stdin hangs: pass its no-stdin option (marp-cli `--no-stdin`) or `< /dev/null`. A `grep -v` that filters everything fails a `pipefail` chain, and a `;` lets a later `git commit` run after a failed step: keep the commit in its own command.
+description: Run any command that may take a while, or whose output the user may want to inspect, as `(set -o pipefail && <cmd> 2>&1 | tee work/<name>.log | tail -50)`. The log keeps the full output, `pipefail` keeps the command's own exit status, and the subshell scopes the option. When the command runs in the background, tell the user the log's path. Judge success from the log's own success line, not from a chained `echo $?`. How safely two builds can share one output tree depends on the build system. Cargo's locking is robust. Other build systems (e.g. Makefile-based, Lean's lake) allow corruption, races, or deadlocks, and should therefore be serialized. Alternating between two checkouts or worktrees, kept rather than recreated, hides build latency. Disregard a build that overlapped with editing, and do not interrupt a long build for a cosmetic edit. When a build in a checkout is the user's next step, leave the checkout on the branch that the build needs and say which branch it is on. Before calling a build stuck, rule out a slow step and a machine that slept. Run benchmarks in the foreground with nothing else running, and on a laptop only on mains power. A backgrounded tool that reads stdin hangs: pass its no-stdin option (marp-cli `--no-stdin`) or `< /dev/null`. A `grep -v` that filters everything fails a `pipefail` chain, and a `;` lets a later `git commit` run after a failed step: keep the commit in its own command. A background script pauses at a step that needs a permission prompt, such as a `git commit` inside it, until the user answers, so keep such steps out of long background jobs.
 core: true
 type: feedback
 ---
@@ -60,3 +60,24 @@ A race looks like real defects: an artifact "not found" that is on disk a second
 **When a build in a checkout is the user's next step, leave the checkout on the branch that the build needs, and say which branch it is on.** The user builds from the checkout's current state, not from the branch that was last discussed. In one session, a branch for a second task was created after the first task's commits and the checkout was left on it, so the user's build of the first task's branch ran on the second one, and had to be stopped and restarted. Name the branch in the message that hands the build over, and switch back first if another branch was checked out in between.
 
 **So a trivial edit is never worth interrupting a long build.** Any edit made during a build costs the whole build. Where a build system records source positions in its artifacts, even a whitespace change cascades a rebuild through everything downstream. Before editing during a build, ask what the edit is worth against restarting the build. Queue a cosmetic edit until the build finishes. If an edit must go in now, stop the build deliberately, make the edit, and restart. Do not over-protect a work-in-progress branch from an imperfect intermediate state when the reviewer already knows that it is in progress.
+
+## Keep permission-prompting steps out of background scripts
+
+A background script pauses at any step that needs a permission prompt, such as a `git commit`
+inside it, until the user answers, and nothing in the script's own log shows the pause. One
+pipeline's commit step waited an hour for the prompt. Which steps prompt is hard to predict: it
+depends on the harness's heuristics and on which grants the session has already made. So do not
+rely on predicting it. Put the steps with side effects that can live outside, such as commits,
+in their own foreground calls before or after the long job, and after launching a background
+job check its log's timestamps once: a step that should have finished and has logged nothing
+may be waiting on a prompt, which looks the same as a hang.
+
+## Memory-heavy checkers run one at a time
+
+A checker or exporter that loads a whole development, such as a proof checker over a large
+library, can take tens of gigabytes each. Never run two
+at once, and never queue a second stage so that it may start while the first still runs.
+Measure the first run's peak memory before deciding on any parallelism, and poll it with a
+kill-by-PID threshold during long runs. In one session, a bisection that launched a second and
+third stage while the first was still running put three checkers and their exports in memory at
+once, about 200 GB, and the user had to kill them.
